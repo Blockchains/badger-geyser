@@ -8,7 +8,7 @@ const PERC_DECIMALS = 2;
 const AMPL_DECIMALS = 9;
 
 function $AMPL (x) {
-  return new BN(x * (10 ** AMPL_DECIMALS));
+  return new BN(x * 10 ** AMPL_DECIMALS);
 }
 
 // Perc has to be a whole number
@@ -32,7 +32,9 @@ function checkAprox (x, y, delta_) {
   const delta = new BN(parseInt(delta_));
   const upper = y.add(delta);
   const lower = y.sub(delta);
-  expect(x).to.be.bignumber.at.least(lower).and.bignumber.at.most(upper);
+  expect(x)
+    .to.be.bignumber.at.least(lower)
+    .and.bignumber.at.most(upper);
 }
 
 class TimeController {
@@ -68,6 +70,10 @@ class TimeController {
   }
 }
 
+function now () {
+  return Math.floor(Date.now() / 1000).toString();
+}
+
 async function printMethodOutput (r) {
   console.log(r.logs);
 }
@@ -98,16 +104,37 @@ async function increaseTimeForNextTransaction (diff) {
   });
 }
 
+async function lockTokensAtLatestTime (geyser, amount, duration) {
+  const now = await time.latest();
+  await setTimeForNextTransaction(now);
+  return (await geyser.lockTokens(amount, duration, now));
+}
+
 async function setTimeForNextTransaction (target) {
   if (!BN.isBN(target)) {
     target = new BN(target);
   }
 
-  const now = (await time.latest());
+  const now = await time.latest();
 
-  if (target.lt(now)) throw Error(`Cannot increase current time (${now}) to a moment in the past (${target})`);
+  if (target.lt(now)) {
+    throw Error(
+      `Cannot increase current time (${now}) to a moment in the past (${target})`
+    );
+  }
   const diff = target.sub(now);
   increaseTimeForNextTransaction(diff);
 }
 
-module.exports = {checkAmplAprox, checkSharesAprox, invokeRebase, $AMPL, setTimeForNextTransaction, TimeController, printMethodOutput, printStatus};
+module.exports = {
+  checkAmplAprox,
+  checkSharesAprox,
+  invokeRebase,
+  $AMPL,
+  setTimeForNextTransaction,
+  TimeController,
+  printMethodOutput,
+  printStatus,
+  now,
+  lockTokensAtLatestTime
+};

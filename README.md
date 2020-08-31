@@ -1,14 +1,49 @@
-# Token Geyser
+# Badger Geyser
+A smart-contract based mechanism to distribute tokens over time, inspired loosely by Compound and Uniswap. Based on the Ampleforth [Token Geyser](https://github.com/ampleforth/token-geyser/blob/master/contracts/BadgerGeyser.sol) implementation.
 
-[![Build Status](https://travis-ci.com/ampleforth/token-geyser.svg?token=o34Gqy9mFp6fX3Y6jzyy&branch=master)](https://travis-ci.com/ampleforth/token-geyser)&nbsp;&nbsp;[![Coverage Status](https://coveralls.io/repos/github/ampleforth/token-geyser/badge.svg?branch=master&t=LdZfUk)](https://coveralls.io/github/ampleforth/token-geyser?branch=master)
+Within the Badger system, Geysers are used to mediate the initial distribution of governance and DIGG tokens.
 
-A smart-contract based mechanism to distribute tokens over time, inspired loosely by Compound and Uniswap.
+Distribution tokens are added to a locked pool in the contract and become unlocked over time according to a once-configurable unlock schedule. Once unlocked, they are available to be claimed by users.
 
-Implementation of [Continuous Vesting Token Distribution](https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md)
+A user may deposit tokens to accrue ownership share over the unlocked pool. This owner share is a function of the number of tokens deposited as well as the length of time deposited.
 
-The official Geyser contract addresses are (by target):
-- UniswapV2 [ETH/AMPL](https://uniswap.exchange/swap?outputCurrency=0xd46ba6d942050d489dbd938a2c909a5d5039a161) Pool: [0xD36132E0c1141B26E62733e018f12Eb38A7b7678](https://etherscan.io/address/0xd36132e0c1141b26e62733e018f12eb38a7b7678)
+Specifically, a user's share of the currently-unlocked pool equals their "deposit-seconds" divided by the global "deposit-seconds". 
 
+Users are able to increase, decrease, or remove their staked tokens, and therefore their future share, at any time.
+
+The audit for the original Ampleforth implementation audit can be found [here](https://github.com/ampleforth/ampleforth-audits/blob/master/token-geyser/v1.0.0/CertiK_Verification_Report.pdf)
+
+# Contract Overview
+The intent of the Geyser is to distribute the distributionToken over time according to the unlockSchedules. The unlockSchedules are set by the contract owner by locking the distributionToken via lockTokens(). Any user is able to gain a share of the distributionToken by locking amounts of the stakingToken within the Geyser. 
+
+The Geyser is made from several components:
+- The Geyser contract itself
+- Several pool helper contracts to hold balances for locked & unlocked distributionTokens, and staked stakingTokens.
+
+## Modifications from Ampleforth
+A couple of modifications allow the Geyser to start distribution at a pre-configured time, rather than at the time of deployment.
+
+- There is a global start time, set on constructor. Before this time no staking or unstaking can occur.
+
+- The unlock schedule for each lockTokens() action does not start at the block timestamp in which the transaction executes, rather starting at a specified time. This time must be after the global start time.
+
+## Configuration Notes
+The configuration of the distribution pools additionally 'removes' some functionality from the Ampleforth implementation. This implementation is designed to be used with certain parameters.
+
+### startBonus & bonusPeriodSec
+- These parameters are used to reward users a higher proportion of shares for staking for longer periods of time
+- This feature is not desired in Badger Geysers due to the short staking times, with a preference towards a simpler linear distribution.
+- This feature is effectively disabled with the chosen values, as per the documentation
+```
+// If no period is desired, instead set startBonus = 100%
+// and bonusPeriod to a small value like 1sec.
+```
+- In the Badger system, each staking pool has only one unlock schedule. The maxUnlockSchedules is set to 1 in the constructor to enforce this property.
+
+## Expected Behavior
+The owner of the pool should be able to lock distribution tokens, to start unlocking at a specified time for a specified duration.
+
+While the staking pool is active (after it's global start) users should be able to stake and unstake at-will. 
 ## Table of Contents
 
 - [Install](#install)

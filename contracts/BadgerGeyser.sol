@@ -25,7 +25,7 @@ import "./TokenPool.sol";
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract TokenGeyser is IStaking, Ownable {
+contract BadgerGeyser is IStaking, Ownable {
     using SafeMath for uint256;
 
     event Staked(address indexed user, uint256 amount, uint256 total, bytes data);
@@ -45,6 +45,7 @@ contract TokenGeyser is IStaking, Ownable {
     uint256 public constant BONUS_DECIMALS = 2;
     uint256 public startBonus = 0;
     uint256 public bonusPeriodSec = 0;
+    uint256 public globalStartTime;
 
     //
     // Global accounting state
@@ -88,6 +89,7 @@ contract TokenGeyser is IStaking, Ownable {
         uint256 lastUnlockTimestampSec;
         uint256 endAtSec;
         uint256 durationSec;
+        uint256 startTime;
     }
 
     UnlockSchedule[] public unlockSchedules;
@@ -100,23 +102,31 @@ contract TokenGeyser is IStaking, Ownable {
      *                    e.g. 25% means user gets 25% of max distribution tokens.
      * @param bonusPeriodSec_ Length of time for bonus to increase linearly to max.
      * @param initialSharesPerToken Number of shares to mint per staking token on first stake.
+     * @param globalStartTime_ Timestamp after which unlock schedules and staking can begin.
      */
-    constructor(IERC20 stakingToken, IERC20 distributionToken, uint256 maxUnlockSchedules,
-                uint256 startBonus_, uint256 bonusPeriodSec_, uint256 initialSharesPerToken) public {
+    constructor(IERC20 stakingToken, IERC20 distributionToken, uint256 maxUnlockSchedules, 
+        uint256 startBonus_, uint256 bonusPeriodSec_, uint256 initialSharesPerToken,
+        uint256 globalStartTime_) public {
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
-        require(startBonus_ <= 10**BONUS_DECIMALS, 'TokenGeyser: start bonus too high');
+        require(startBonus_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: start bonus too high');
         // If no period is desired, instead set startBonus = 100%
         // and bonusPeriod to a small value like 1sec.
-        require(bonusPeriodSec_ != 0, 'TokenGeyser: bonus period is zero');
-        require(initialSharesPerToken > 0, 'TokenGeyser: initialSharesPerToken is zero');
+        require(bonusPeriodSec_ != 0, 'BadgerGeyser: bonus period is zero');
+        require(initialSharesPerToken > 0, 'BadgerGeyser: initialSharesPerToken is zero');
 
         _stakingPool = new TokenPool(stakingToken);
         _unlockedPool = new TokenPool(distributionToken);
         _lockedPool = new TokenPool(distributionToken);
         startBonus = startBonus_;
+        globalStartTime = globalStartTime_;
         bonusPeriodSec = bonusPeriodSec_;
         _maxUnlockSchedules = maxUnlockSchedules;
         _initialSharesPerToken = initialSharesPerToken;
+    }
+
+    modifier onlyAfterStart() {
+        require(now >= globalStartTime, "Distribution not started");
+        _;
     }
 
     /**
@@ -139,7 +149,7 @@ contract TokenGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to stake.
      * @param data Not used.
      */
-    function stake(uint256 amount, bytes calldata data) external {
+    function stake(uint256 amount, bytes calldata data) onlyAfterStart() external {
         _stakeFor(msg.sender, msg.sender, amount);
     }
 
@@ -149,7 +159,7 @@ contract TokenGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to stake.
      * @param data Not used.
      */
-    function stakeFor(address user, uint256 amount, bytes calldata data) external {
+    function stakeFor(address user, uint256 amount, bytes calldata data) onlyAfterStart() external {
         _stakeFor(msg.sender, user, amount);
     }
 
@@ -160,15 +170,15 @@ contract TokenGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to stake.
      */
     function _stakeFor(address staker, address beneficiary, uint256 amount) private {
-        require(amount > 0, 'TokenGeyser: stake amount is zero');
-        require(beneficiary != address(0), 'TokenGeyser: beneficiary is zero address');
+        require(amount > 0, 'BadgerGeyser: stake amount is zero');
+        require(beneficiary != address(0), 'BadgerGeyser: beneficiary is zero address');
         require(totalStakingShares == 0 || totalStaked() > 0,
-                'TokenGeyser: Invalid state. Staking shares exist, but no staking tokens do');
+                'BadgerGeyser: Invalid state. Staking shares exist, but no staking tokens do');
 
         uint256 mintedStakingShares = (totalStakingShares > 0)
             ? totalStakingShares.mul(amount).div(totalStaked())
             : amount.mul(_initialSharesPerToken);
-        require(mintedStakingShares > 0, 'TokenGeyser: Stake amount is too small');
+        require(mintedStakingShares > 0, 'BadgerGeyser: Stake amount is too small');
 
         updateAccounting();
 
@@ -187,7 +197,7 @@ contract TokenGeyser is IStaking, Ownable {
 
         // interactions
         require(_stakingPool.token().transferFrom(staker, address(_stakingPool), amount),
-            'TokenGeyser: transfer into staking pool failed');
+            'BadgerGeyser: transfer into staking pool failed');
 
         emit Staked(beneficiary, amount, totalStakedFor(beneficiary), "");
     }
@@ -198,7 +208,7 @@ contract TokenGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @param data Not used.
      */
-    function unstake(uint256 amount, bytes calldata data) external {
+    function unstake(uint256 amount, bytes calldata data) onlyAfterStart() external {
         _unstake(amount);
     }
 
@@ -220,11 +230,11 @@ contract TokenGeyser is IStaking, Ownable {
         updateAccounting();
 
         // checks
-        require(amount > 0, 'TokenGeyser: unstake amount is zero');
+        require(amount > 0, 'BadgerGeyser: unstake amount is zero');
         require(totalStakedFor(msg.sender) >= amount,
-            'TokenGeyser: unstake amount is greater than total user stakes');
+            'BadgerGeyser: unstake amount is greater than total user stakes');
         uint256 stakingSharesToBurn = totalStakingShares.mul(amount).div(totalStaked());
-        require(stakingSharesToBurn > 0, 'TokenGeyser: Unable to unstake amount this small');
+        require(stakingSharesToBurn > 0, 'BadgerGeyser: Unable to unstake amount this small');
 
         // 1. User Accounting
         UserTotals storage totals = _userTotals[msg.sender];
@@ -267,15 +277,15 @@ contract TokenGeyser is IStaking, Ownable {
 
         // interactions
         require(_stakingPool.transfer(msg.sender, amount),
-            'TokenGeyser: transfer out of staking pool failed');
+            'BadgerGeyser: transfer out of staking pool failed');
         require(_unlockedPool.transfer(msg.sender, rewardAmount),
-            'TokenGeyser: transfer out of unlocked pool failed');
+            'BadgerGeyser: transfer out of unlocked pool failed');
 
         emit Unstaked(msg.sender, amount, totalStakedFor(msg.sender), "");
         emit TokensClaimed(msg.sender, rewardAmount);
 
         require(totalStakingShares == 0 || totalStaked() > 0,
-                "TokenGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
+                "BadgerGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
         return rewardAmount;
     }
 
@@ -415,10 +425,13 @@ contract TokenGeyser is IStaking, Ownable {
      *      linearly over the duraction of durationSec timeframe.
      * @param amount Number of distribution tokens to lock. These are transferred from the caller.
      * @param durationSec Length of time to linear unlock the tokens.
+     * @param startTime Time to start distribution.
      */
-    function lockTokens(uint256 amount, uint256 durationSec) external onlyOwner {
+    function lockTokens(uint256 amount, uint256 durationSec, uint256 startTime) external onlyOwner {
         require(unlockSchedules.length < _maxUnlockSchedules,
-            'TokenGeyser: reached maximum unlock schedules');
+            'BadgerGeyser: reached maximum unlock schedules');
+
+        require (startTime >= globalStartTime, 'BadgerGeyser: schedule cannot start before global start time');
 
         // Update lockedTokens amount before using it in computations after.
         updateAccounting();
@@ -430,15 +443,16 @@ contract TokenGeyser is IStaking, Ownable {
 
         UnlockSchedule memory schedule;
         schedule.initialLockedShares = mintedLockedShares;
-        schedule.lastUnlockTimestampSec = now;
-        schedule.endAtSec = now.add(durationSec);
+        schedule.lastUnlockTimestampSec = startTime;
+        schedule.endAtSec = startTime.add(durationSec);
         schedule.durationSec = durationSec;
+        schedule.startTime = startTime;
         unlockSchedules.push(schedule);
 
         totalLockedShares = totalLockedShares.add(mintedLockedShares);
 
         require(_lockedPool.token().transferFrom(msg.sender, address(_lockedPool), amount),
-            'TokenGeyser: transfer into locked pool failed');
+            'BadgerGeyser: transfer into locked pool failed');
         emit TokensLocked(amount, durationSec, totalLocked());
     }
 
@@ -464,7 +478,7 @@ contract TokenGeyser is IStaking, Ownable {
 
         if (unlockedTokens > 0) {
             require(_lockedPool.transfer(address(_unlockedPool), unlockedTokens),
-                'TokenGeyser: transfer out of locked pool failed');
+                'BadgerGeyser: transfer out of locked pool failed');
             emit TokensUnlocked(unlockedTokens, totalLocked());
         }
 
@@ -482,6 +496,10 @@ contract TokenGeyser is IStaking, Ownable {
         UnlockSchedule storage schedule = unlockSchedules[s];
 
         if(schedule.unlockedShares >= schedule.initialLockedShares) {
+            return 0;
+        }
+
+        if (now < schedule.startTime) {
             return 0;
         }
 

@@ -11,7 +11,7 @@ const {
 } = _require('/test/helper');
 
 const AmpleforthErc20 = contract.fromArtifact('UFragments');
-const TokenGeyser = contract.fromArtifact('TokenGeyser');
+const BadgerGeyser = contract.fromArtifact('BadgerGeyser');
 const InitialSharesPerToken = 10 ** 6;
 
 let ampl, dist, owner, anotherAccount;
@@ -27,21 +27,21 @@ describe('staking', function () {
 
     const startBonus = 50;
     const bonusPeriod = 86400;
-    dist = await TokenGeyser.new(ampl.address, ampl.address, 10, startBonus, bonusPeriod,
-      InitialSharesPerToken);
+    dist = await BadgerGeyser.new(ampl.address, ampl.address, 10, startBonus, bonusPeriod,
+      InitialSharesPerToken, 0);
   });
 
   describe('when start bonus too high', function () {
     it('should fail to construct', async function () {
-      await expectRevert(TokenGeyser.new(ampl.address, ampl.address, 10, 101, 86400, InitialSharesPerToken),
-        'TokenGeyser: start bonus too high');
+      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 101, 86400, InitialSharesPerToken, 0),
+        'BadgerGeyser: start bonus too high');
     });
   });
 
   describe('when bonus period is 0', function () {
     it('should fail to construct', async function () {
-      await expectRevert(TokenGeyser.new(ampl.address, ampl.address, 10, 50, 0, InitialSharesPerToken),
-        'TokenGeyser: bonus period is zero');
+      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 50, 0, InitialSharesPerToken, 0),
+        'BadgerGeyser: bonus period is zero');
     });
   });
 
@@ -144,7 +144,7 @@ describe('staking', function () {
         await invokeRebase(ampl, 100 * InitialSharesPerToken);
         await expectRevert(
           dist.stake(1, []),
-          'TokenGeyser: Stake amount is too small'
+          'BadgerGeyser: Stake amount is too small'
         );
       });
     });
@@ -177,7 +177,7 @@ describe('staking', function () {
     describe('when the beneficiary is ZERO_ADDRESS', function () {
       it('should fail', async function () {
         await expectRevert(dist.stakeFor(constants.ZERO_ADDRESS, $AMPL(100), []),
-          'TokenGeyser: beneficiary is zero address');
+          'BadgerGeyser: beneficiary is zero address');
       });
     });
 

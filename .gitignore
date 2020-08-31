@@ -74,3 +74,9 @@ coverage/
 coverageEnv/
 
 .openzeppelin
+
+node_modules
+
+#Buidler files
+cache
+artifacts
