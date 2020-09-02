@@ -25,9 +25,9 @@ describe('staking', function () {
     await ampl.initialize(owner);
     await ampl.setMonetaryPolicy(owner);
 
-    const startBonus = 50;
-    const bonusPeriod = 86400;
-    dist = await BadgerGeyser.new(ampl.address, ampl.address, 10, startBonus, bonusPeriod,
+    const startBonus = 100;
+    const bonusPeriod = 1;
+    dist = await BadgerGeyser.new(ampl.address, ampl.address, 1, startBonus, bonusPeriod,
       InitialSharesPerToken, 0);
   });
 

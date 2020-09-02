@@ -34,8 +34,8 @@ async function setupContractAndAccounts () {
   await ampl.initialize(owner);
   await ampl.setMonetaryPolicy(owner);
 
-  const startBonus = 50; // 50%
-  const bonusPeriod = 86400; // 1 Day
+  const startBonus = 50;
+  const bonusPeriod = 1;
   dist = await BadgerGeyser.new(
     ampl.address,
     ampl.address,
@@ -183,13 +183,13 @@ describe('unstaking', function () {
         expect(
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(250));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 625); // (.5 * .75 * 1000) + 250
+        checkAmplAprox(await totalRewardsFor(anotherAccount), 500); // (.5 * 1 * 1000) + 250
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 625);
+        checkAmplAprox(b.sub(_b), 750);
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -203,7 +203,7 @@ describe('unstaking', function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
         expectEvent(r, 'TokensClaimed', {
           user: anotherAccount,
-          amount: $AMPL(375) // .5 * .75 * 1000
+          amount: $AMPL(500) // .5 * .75 * 1000
         });
       });
     });

@@ -25,8 +25,8 @@ const AmpleforthErc20 = contract.fromArtifact('UFragments');
 const BadgerGeyser = contract.fromArtifact('BadgerGeyser');
 
 const ONE_YEAR = 365 * 24 * 3600;
-const START_BONUS = 50;
-const BONUS_PERIOD = 86400;
+const START_BONUS = 100;
+const BONUS_PERIOD = 1;
 const InitialSharesPerToken = 10 ** 6;
 
 let ampl, dist, owner, anotherAccount;
@@ -74,7 +74,7 @@ describe('LockedPool', function () {
         const d = await BadgerGeyser.new(
           ampl.address,
           ampl.address,
-          5,
+          1,
           START_BONUS,
           BONUS_PERIOD,
           InitialSharesPerToken,
@@ -91,17 +91,13 @@ describe('LockedPool', function () {
         const d = await BadgerGeyser.new(
           ampl.address,
           ampl.address,
-          5,
+          1,
           START_BONUS,
           BONUS_PERIOD,
           InitialSharesPerToken,
           0
         );
         await ampl.approve(d.address, $AMPL(100));
-        await lockTokensAtLatestTime(d, $AMPL(10), ONE_YEAR);
-        await lockTokensAtLatestTime(d, $AMPL(10), ONE_YEAR);
-        await lockTokensAtLatestTime(d, $AMPL(10), ONE_YEAR);
-        await lockTokensAtLatestTime(d, $AMPL(10), ONE_YEAR);
         await lockTokensAtLatestTime(d, $AMPL(10), ONE_YEAR);
         await expectRevert(
           d.lockTokens($AMPL(10), ONE_YEAR, now()),
