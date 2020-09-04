@@ -271,7 +271,7 @@ describe('unstaking', function () {
           user: anotherAccount
         });
         const l1 = r1.logs.filter(l => l.event === 'TokensClaimed')[0];
-        const claim1 = l1.args.amount;
+        const claim1 = l1.args.totalReward;
         const r2 = await dist.unstake($AMPL(5), [], { from: anotherAccount });
         expectEvent(r2, 'TokensClaimed', {
           user: anotherAccount
@@ -281,7 +281,7 @@ describe('unstaking', function () {
           user: anotherAccount
         });
         const l3 = r3.logs.filter(l => l.event === 'TokensClaimed')[0];
-        const claim3 = l3.args.amount;
+        const claim3 = l3.args.totalReward;
         const ratio = claim3.mul(new BN(100)).div(claim1);
         expect(ratio)
           .to.be.bignumber.gte('199')
@@ -427,7 +427,7 @@ describe('unstaking', function () {
       const a = await dist.unstakeQuery.call($AMPL(30), {
         from: anotherAccount
       });
-      checkAmplAprox(a, 60);
+      checkAmplAprox(a.totalReward, 60); // Check total rewards
     });
   });
 });

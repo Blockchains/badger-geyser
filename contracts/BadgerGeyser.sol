@@ -114,7 +114,7 @@ contract BadgerGeyser is IStaking, Ownable {
      */
     constructor(IERC20 stakingToken, IERC20 distributionToken, uint256 maxUnlockSchedules, 
         uint256 startBonus_, uint256 bonusPeriodSec_, uint256 initialSharesPerToken,
-        uint256 globalStartTime_, uint256 founderRewardPercentage_, address founderRewardAddress_) public {
+        uint256 globalStartTime_, address founderRewardAddress_, uint256 founderRewardPercentage_) public {
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
         require(startBonus_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: start bonus too high');
 
