@@ -28,19 +28,19 @@ describe('staking', function () {
     const startBonus = 100;
     const bonusPeriod = 1;
     dist = await BadgerGeyser.new(ampl.address, ampl.address, 1, startBonus, bonusPeriod,
-      InitialSharesPerToken, 0);
+      InitialSharesPerToken, 0, owner, 0);
   });
 
   describe('when start bonus too high', function () {
     it('should fail to construct', async function () {
-      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 101, 86400, InitialSharesPerToken, 0),
+      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 101, 86400, InitialSharesPerToken, 0, owner, 0),
         'BadgerGeyser: start bonus too high');
     });
   });
 
   describe('when bonus period is 0', function () {
     it('should fail to construct', async function () {
-      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 50, 0, InitialSharesPerToken, 0),
+      await expectRevert(BadgerGeyser.new(ampl.address, ampl.address, 10, 50, 0, InitialSharesPerToken, 0, owner, 0),
         'BadgerGeyser: bonus period is zero');
     });
   });

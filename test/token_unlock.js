@@ -46,6 +46,8 @@ async function setupContractAndAccounts () {
     START_BONUS,
     BONUS_PERIOD,
     InitialSharesPerToken,
+    0,
+    owner,
     0
   );
 }
@@ -78,6 +80,8 @@ describe('LockedPool', function () {
           START_BONUS,
           BONUS_PERIOD,
           InitialSharesPerToken,
+          0,
+          owner,
           0
         );
         await expectRevert.unspecified(
@@ -95,6 +99,8 @@ describe('LockedPool', function () {
           START_BONUS,
           BONUS_PERIOD,
           InitialSharesPerToken,
+          0,
+          owner,
           0
         );
         await ampl.approve(d.address, $AMPL(100));

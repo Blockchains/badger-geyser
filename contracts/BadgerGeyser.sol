@@ -30,7 +30,7 @@ contract BadgerGeyser is IStaking, Ownable {
 
     event Staked(address indexed user, uint256 amount, uint256 total, bytes data);
     event Unstaked(address indexed user, uint256 amount, uint256 total, bytes data);
-    event TokensClaimed(address indexed user, uint256 amount);
+    event TokensClaimed(address indexed user, uint256 totalReward, uint256 userReward, uint256 founderReward);
     event TokensLocked(uint256 amount, uint256 durationSec, uint256 total);
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
@@ -43,6 +43,7 @@ contract BadgerGeyser is IStaking, Ownable {
     // Time-bonus params
     //
     uint256 public constant BONUS_DECIMALS = 2;
+    uint256 public constant MAX_PERCENTAGE = 2;
     uint256 public startBonus = 0;
     uint256 public bonusPeriodSec = 0;
     uint256 public globalStartTime;
@@ -94,6 +95,13 @@ contract BadgerGeyser is IStaking, Ownable {
 
     UnlockSchedule[] public unlockSchedules;
 
+
+    //
+    // Founder Lock state
+    //
+    uint256 public founderRewardPercentage = 0; //0% - 100% 
+    address public founderRewardAddress;
+
     /**
      * @param stakingToken The token users deposit as stake.
      * @param distributionToken The token users receive as they unstake.
@@ -106,9 +114,13 @@ contract BadgerGeyser is IStaking, Ownable {
      */
     constructor(IERC20 stakingToken, IERC20 distributionToken, uint256 maxUnlockSchedules, 
         uint256 startBonus_, uint256 bonusPeriodSec_, uint256 initialSharesPerToken,
-        uint256 globalStartTime_) public {
+        uint256 globalStartTime_, uint256 founderRewardPercentage_, address founderRewardAddress_) public {
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
         require(startBonus_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: start bonus too high');
+
+        // The founder reward must be some fraction of the max. (i.e. <= 100%)
+        require(founderRewardPercentage_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: founder reward too high');
+
         // If no period is desired, instead set startBonus = 100%
         // and bonusPeriod to a small value like 1sec.
         require(bonusPeriodSec_ != 0, 'BadgerGeyser: bonus period is zero');
@@ -122,6 +134,8 @@ contract BadgerGeyser is IStaking, Ownable {
         bonusPeriodSec = bonusPeriodSec_;
         _maxUnlockSchedules = maxUnlockSchedules;
         _initialSharesPerToken = initialSharesPerToken;
+        founderRewardPercentage = founderRewardPercentage_;
+        founderRewardAddress = founderRewardAddress_;
     }
 
     modifier onlyAfterStart() {
@@ -216,7 +230,9 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @return The total number of distribution tokens that would be rewarded.
      */
-    function unstakeQuery(uint256 amount) public returns (uint256) {
+    function unstakeQuery(uint256 amount) 
+        public 
+        returns (uint256 totalReward, uint256 userReward, uint256 founderReward) {
         return _unstake(amount);
     }
 
@@ -226,7 +242,7 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @return The total number of distribution tokens rewarded.
      */
-    function _unstake(uint256 amount) private returns (uint256) {
+    function _unstake(uint256 amount) private returns (uint256 totalReward, uint256 userReward, uint256 founderReward) {
         updateAccounting();
 
         // checks
@@ -275,18 +291,38 @@ contract BadgerGeyser is IStaking, Ownable {
         // Already set in updateAccounting
         // _lastAccountingTimestampSec = now;
 
+        totalReward = rewardAmount;
+
+        if (founderRewardPercentage == 0) {
+            userReward = totalReward; 
+            founderReward = 0; 
+        } else if (founderRewardPercentage == 100) {
+            userReward = 0; 
+            founderReward = totalReward; 
+        } else {
+            founderReward = totalReward.mul(MAX_PERCENTAGE).div(founderRewardPercentage);
+            userReward = totalReward.sub(founderReward); // Extra dust goes to use due to truncated rounding
+        }
+
         // interactions
         require(_stakingPool.transfer(msg.sender, amount),
             'BadgerGeyser: transfer out of staking pool failed');
-        require(_unlockedPool.transfer(msg.sender, rewardAmount),
-            'BadgerGeyser: transfer out of unlocked pool failed');
+
+        if (userReward > 0) {
+        require(_unlockedPool.transfer(msg.sender, userReward),
+            'BadgerGeyser: transfer to user out of unlocked pool failed');
+        }
+
+        if (founderReward > 0) {
+        require(_unlockedPool.transfer(founderRewardAddress, founderReward),
+            'BadgerGeyser: transfer to founder out of unlocked pool failed');
+        }
 
         emit Unstaked(msg.sender, amount, totalStakedFor(msg.sender), "");
-        emit TokensClaimed(msg.sender, rewardAmount);
+        emit TokensClaimed(msg.sender, totalReward, userReward, founderReward);
 
         require(totalStakingShares == 0 || totalStaked() > 0,
                 "BadgerGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
-        return rewardAmount;
     }
 
     /**

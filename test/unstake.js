@@ -39,10 +39,12 @@ async function setupContractAndAccounts () {
   dist = await BadgerGeyser.new(
     ampl.address,
     ampl.address,
-    10,
+    1,
     startBonus,
     bonusPeriod,
     InitialSharesPerToken,
+    0,
+    owner,
     0
   );
 
@@ -155,7 +157,7 @@ describe('unstaking', function () {
         const r = await dist.unstake($AMPL(30), [], { from: anotherAccount });
         expectEvent(r, 'TokensClaimed', {
           user: anotherAccount,
-          amount: $AMPL(60)
+          totalReward: $AMPL(60)
         });
       });
     });
@@ -203,7 +205,7 @@ describe('unstaking', function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
         expectEvent(r, 'TokensClaimed', {
           user: anotherAccount,
-          amount: $AMPL(500) // .5 * .75 * 1000
+          totalReward: $AMPL(500) // .5 * .75 * 1000
         });
       });
     });
