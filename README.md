@@ -21,11 +21,15 @@ The Geyser is made from several components:
 - Several pool helper contracts to hold balances for locked & unlocked distributionTokens, and staked stakingTokens.
 
 ## Modifications from Ampleforth
+
+#### Start Times
 A couple of modifications allow the Geyser to start distribution at a pre-configured time, rather than at the time of deployment.
 
 - There is a global start time, set on constructor. Before this time no staking or unstaking can occur.
-
 - The unlock schedule for each lockTokens() action does not start at the block timestamp in which the transaction executes, rather starting at a specified time. This time must be after the global start time.
+
+#### Founder Reward
+When unstaking, a flat percentage of accured rewards can optionally be sent to a founder address, specified on contract creation.
 
 ## Configuration Notes
 The configuration of the distribution pools additionally 'removes' some functionality from the Ampleforth implementation. This implementation is designed to be used with certain parameters.
@@ -39,6 +43,9 @@ The configuration of the distribution pools additionally 'removes' some function
 // and bonusPeriod to a small value like 1sec.
 ```
 - In the Badger system, each staking pool has only one unlock schedule. The maxUnlockSchedules is set to 1 in the constructor to enforce this property.
+
+#### founderRewardPercentage
+10%
 
 ## Expected Behavior
 The owner of the pool should be able to lock distribution tokens, to start unlocking at a specified time for a specified duration.
