@@ -3,7 +3,6 @@ pragma solidity 0.5.0;
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-
 import "./IStaking.sol";
 import "./TokenPool.sol";
 
@@ -43,7 +42,6 @@ contract BadgerGeyser is IStaking, Ownable {
     // Time-bonus params
     //
     uint256 public constant BONUS_DECIMALS = 2;
-    uint256 public constant MAX_PERCENTAGE = 2;
     uint256 public startBonus = 0;
     uint256 public bonusPeriodSec = 0;
     uint256 public globalStartTime;
@@ -99,6 +97,7 @@ contract BadgerGeyser is IStaking, Ownable {
     //
     // Founder Lock state
     //
+    uint256 public constant MAX_PERCENTAGE = 100;
     uint256 public founderRewardPercentage = 0; //0% - 100% 
     address public founderRewardAddress;
 
@@ -292,17 +291,7 @@ contract BadgerGeyser is IStaking, Ownable {
         // _lastAccountingTimestampSec = now;
 
         totalReward = rewardAmount;
-
-        if (founderRewardPercentage == 0) {
-            userReward = totalReward; 
-            founderReward = 0; 
-        } else if (founderRewardPercentage == 100) {
-            userReward = 0; 
-            founderReward = totalReward; 
-        } else {
-            founderReward = totalReward.mul(MAX_PERCENTAGE).div(founderRewardPercentage);
-            userReward = totalReward.sub(founderReward); // Extra dust goes to use due to truncated rounding
-        }
+        (userReward, founderReward) = computeFounderReward(totalReward);
 
         // interactions
         require(_stakingPool.transfer(msg.sender, amount),
@@ -323,6 +312,24 @@ contract BadgerGeyser is IStaking, Ownable {
 
         require(totalStakingShares == 0 || totalStaked() > 0,
                 "BadgerGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
+    }
+
+    /**
+     * @dev Determines split of specified reward amount between user and founder.
+     * @param totalReward Amount of reward to split.
+     * @return Reward amounts for user and founder.
+     */
+    function computeFounderReward(uint256 totalReward) public view returns (uint256 userReward, uint256 founderReward) {
+        if (founderRewardPercentage == 0) {
+            userReward = totalReward; 
+            founderReward = 0; 
+        } else if (founderRewardPercentage == 100) {
+            userReward = 0; 
+            founderReward = totalReward; 
+        } else {
+            founderReward = totalReward.mul(founderRewardPercentage).div(MAX_PERCENTAGE);
+            userReward = totalReward.sub(founderReward); // Extra dust goes to use due to truncated rounding
+        }
     }
 
     /**
@@ -395,9 +402,11 @@ contract BadgerGeyser is IStaking, Ownable {
      * @return [3] global staking share seconds
      * @return [4] Rewards caller has accumulated, optimistically assumes max time-bonus.
      * @return [5] block timestamp
+     * @return [6] Rewards caller has accumulated, minus founder rewards
+     * @return [7] Founder rewards portion of accumulation
      */
     function updateAccounting() public returns (
-        uint256, uint256, uint256, uint256, uint256, uint256) {
+        uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
 
         unlockTokens();
 
@@ -424,13 +433,17 @@ contract BadgerGeyser is IStaking, Ownable {
             ? totalUnlocked().mul(totals.stakingShareSeconds).div(_totalStakingShareSeconds)
             : 0;
 
+            (uint256 userRewards, uint256 founderRewards) = computeFounderReward(totalUserRewards);
+
         return (
             totalLocked(),
             totalUnlocked(),
             totals.stakingShareSeconds,
             _totalStakingShareSeconds,
             totalUserRewards,
-            now
+            now,
+            userRewards,
+            founderRewards
         );
     }
 
