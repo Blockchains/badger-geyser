@@ -20,16 +20,16 @@ async function invokeRebase (ampl, perc) {
   await ampl.rebase(1, s_);
 }
 
-function checkRewardsApprox(expected, rewards, userPercentage, founderPercentage) {
+function checkRewardsApprox (expected, rewards, userPercentage, founderPercentage) {
   const {totalRewards, userRewards, founderRewards} = rewards;
   console.log('checkRewards', {
-    totalRewards: totalRewards.toString(), 
-    userRewards: userRewards.toString(), 
+    totalRewards: totalRewards.toString(),
+    userRewards: userRewards.toString(),
     founderRewards: founderRewards.toString()
-  })
-  checkAmplAprox(totalRewards, expected, "totalRewards");
-  checkAmplAprox(userRewards, expected * userPercentage, "userRewards");
-  checkAmplAprox(founderRewards, expected * founderPercentage, "founderRewards");
+  });
+  checkAmplAprox(totalRewards, expected, 'totalRewards');
+  checkAmplAprox(userRewards, expected * userPercentage, 'userRewards');
+  checkAmplAprox(founderRewards, expected * founderPercentage, 'founderRewards');
 }
 
 function checkAmplAprox (x, y, message = undefined) {
@@ -47,14 +47,12 @@ function checkAprox (x, y, delta_, message = undefined) {
 
   if (message) {
     expect(x, message)
-    .to.be.bignumber.at.least(lower)
-    .and.bignumber.at.most(upper);
-
+      .to.be.bignumber.at.least(lower)
+      .and.bignumber.at.most(upper);
   } else {
     expect(x)
-    .to.be.bignumber.at.least(lower)
-    .and.bignumber.at.most(upper);
-
+      .to.be.bignumber.at.least(lower)
+      .and.bignumber.at.most(upper);
   }
 }
 

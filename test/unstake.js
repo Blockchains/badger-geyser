@@ -36,7 +36,7 @@ async function setupContractAndAccounts () {
 
   const startBonus = 100;
   const bonusPeriod = 1;
-  
+
   dist = await BadgerGeyser.new(
     ampl.address,
     ampl.address,

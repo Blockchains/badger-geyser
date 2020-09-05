@@ -36,8 +36,8 @@ async function setupContractAndAccounts () {
   await ampl.initialize(owner);
   await ampl.setMonetaryPolicy(owner);
 
-  founderPercentage = .1;
-  userPercentage = .9;
+  founderPercentage = 0.1;
+  userPercentage = 0.9;
 
   const startBonus = 100;
   const bonusPeriod = 1;
@@ -63,14 +63,14 @@ async function totalRewardsFor (account) {
 }
 
 async function getRewardsFor (account) {
-    const r = await dist.updateAccounting.call({ from: account });
-    return {
-        totalRewards: r[4],
-        userRewards: r[6],
-        founderRewards: r[7]
-    }
-  }
-  
+  const r = await dist.updateAccounting.call({ from: account });
+  return {
+    totalRewards: r[4],
+    userRewards: r[6],
+    founderRewards: r[7]
+  };
+}
+
 describe('founder rewards', function () {
   beforeEach('setup contracts', async function () {
     await setupContractAndAccounts();
@@ -175,7 +175,7 @@ describe('founder rewards', function () {
           user: anotherAccount,
           totalReward: $AMPL(60),
           userReward: $AMPL(54),
-          founderReward: $AMPL(6),
+          founderReward: $AMPL(6)
         });
       });
     });
@@ -211,7 +211,7 @@ describe('founder rewards', function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 250 + (500 * .9)); // Expet user to gain 500 - founderReward
+        checkAmplAprox(b.sub(_b), 250 + (500 * 0.9)); // Expet user to gain 500 - founderReward
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -227,7 +227,7 @@ describe('founder rewards', function () {
           user: anotherAccount,
           totalReward: $AMPL(500), // .5 * .75 * 1000
           userReward: $AMPL(450),
-          founderReward: $AMPL(50),
+          founderReward: $AMPL(50)
         });
       });
     });
@@ -265,7 +265,7 @@ describe('founder rewards', function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        
+
         checkAmplAprox(b.sub(_b), 30 + (10.2 * userPercentage));
       });
     });
@@ -355,7 +355,7 @@ describe('founder rewards', function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 30 + (27.36 * .9));
+        checkAmplAprox(b.sub(_b), 30 + (27.36 * 0.9));
       });
     });
 
