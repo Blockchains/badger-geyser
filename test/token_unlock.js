@@ -531,16 +531,16 @@ describe('LockedPool', function () {
         checkAmplAprox(r[0], 130);
         checkAmplAprox(r[1], 70);
         const timeElapsed = t.sub(_t);
-        expect(r[2].div(new BN(100e9).mul(new BN(InitialSharesPerToken))))
+        expect(r[2].div(new BN(100e9).mul(new BN(InitialSharesPerToken))), 'totalUnlocked')
           .to.be.bignumber.above(timeElapsed.sub(new BN(5)))
           .and.bignumber.below(timeElapsed.add(new BN(5)));
-        expect(r[3].div(new BN(100e9).mul(new BN(InitialSharesPerToken))))
+        expect(r[3].div(new BN(100e9).mul(new BN(InitialSharesPerToken))), 'totals.stakingShareSeconds')
           .to.be.bignumber.above(timeElapsed.sub(new BN(5)))
           .and.bignumber.below(timeElapsed.add(new BN(5)));
         checkAmplAprox(r[4], 70);
         checkAmplAprox(r[4], 70);
         const delta = new BN(r[5]).sub(new BN(_r[5]));
-        expect(delta)
+        expect(delta, 'delta')
           .to.be.bignumber.above(timeElapsed.sub(new BN(1)))
           .and.bignumber.below(timeElapsed.add(new BN(1)));
       });
@@ -556,14 +556,14 @@ describe('LockedPool', function () {
         checkAmplAprox(r[1], 70);
         const timeElapsed = t.sub(_t);
         expect(
-          r[2].div(new BN(100e9).mul(new BN(InitialSharesPerToken)))
+          r[2].div(new BN(100e9).mul(new BN(InitialSharesPerToken))), 'totals.stakingShareSeconds'
         ).to.be.bignumber.equal('0');
-        expect(r[3].div(new BN(100e9).mul(new BN(InitialSharesPerToken))))
+        expect(r[3].div(new BN(100e9).mul(new BN(InitialSharesPerToken))), '_totalStakingShareSeconds')
           .to.be.bignumber.above(timeElapsed.sub(new BN(5)))
           .and.bignumber.below(timeElapsed.add(new BN(5)));
         checkAmplAprox(r[4], 0);
         const delta = new BN(r[5]).sub(new BN(_r[5]));
-        expect(delta)
+        expect(delta, 'delta')
           .to.be.bignumber.above(timeElapsed.sub(new BN(1)))
           .and.bignumber.below(timeElapsed.add(new BN(1)));
       });

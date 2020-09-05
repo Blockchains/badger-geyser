@@ -20,21 +20,40 @@ async function invokeRebase (ampl, perc) {
   await ampl.rebase(1, s_);
 }
 
-function checkAmplAprox (x, y) {
-  checkAprox(x, $AMPL(y), 10 ** 6);
+function checkRewardsApprox (expected, rewards, userPercentage, founderPercentage) {
+  const {totalRewards, userRewards, founderRewards} = rewards;
+  console.log('checkRewards', {
+    totalRewards: totalRewards.toString(),
+    userRewards: userRewards.toString(),
+    founderRewards: founderRewards.toString()
+  });
+  checkAmplAprox(totalRewards, expected, 'totalRewards');
+  checkAmplAprox(userRewards, expected * userPercentage, 'userRewards');
+  checkAmplAprox(founderRewards, expected * founderPercentage, 'founderRewards');
+}
+
+function checkAmplAprox (x, y, message = undefined) {
+  checkAprox(x, $AMPL(y), 10 ** 6, message);
 }
 
 function checkSharesAprox (x, y) {
   checkAprox(x, y, 10 ** 12);
 }
 
-function checkAprox (x, y, delta_) {
+function checkAprox (x, y, delta_, message = undefined) {
   const delta = new BN(parseInt(delta_));
   const upper = y.add(delta);
   const lower = y.sub(delta);
-  expect(x)
-    .to.be.bignumber.at.least(lower)
-    .and.bignumber.at.most(upper);
+
+  if (message) {
+    expect(x, message)
+      .to.be.bignumber.at.least(lower)
+      .and.bignumber.at.most(upper);
+  } else {
+    expect(x)
+      .to.be.bignumber.at.least(lower)
+      .and.bignumber.at.most(upper);
+  }
 }
 
 class TimeController {
@@ -136,5 +155,6 @@ module.exports = {
   printMethodOutput,
   printStatus,
   now,
-  lockTokensAtLatestTime
+  lockTokensAtLatestTime,
+  checkRewardsApprox
 };

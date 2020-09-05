@@ -15,7 +15,8 @@ const {
   invokeRebase,
   checkAmplAprox,
   TimeController,
-  lockTokensAtLatestTime
+  lockTokensAtLatestTime,
+  checkRewardsApprox
 } = _require('/test/helper');
 
 const AmpleforthErc20 = contract.fromArtifact('UFragments');
@@ -25,6 +26,7 @@ const InitialSharesPerToken = 10 ** 6;
 const ONE_YEAR = 1 * 365 * 24 * 3600;
 
 let ampl, dist, owner, anotherAccount;
+let userPercentage, founderPercentage;
 async function setupContractAndAccounts () {
   const accounts = await chain.getUserAccounts();
   owner = web3.utils.toChecksumAddress(accounts[0]);
@@ -34,9 +36,11 @@ async function setupContractAndAccounts () {
   await ampl.initialize(owner);
   await ampl.setMonetaryPolicy(owner);
 
+  founderPercentage = 0.1;
+  userPercentage = 0.9;
+
   const startBonus = 100;
   const bonusPeriod = 1;
-
   dist = await BadgerGeyser.new(
     ampl.address,
     ampl.address,
@@ -46,7 +50,7 @@ async function setupContractAndAccounts () {
     InitialSharesPerToken,
     0,
     owner,
-    0
+    10
   );
 
   await ampl.transfer(anotherAccount, $AMPL(50000));
@@ -58,7 +62,16 @@ async function totalRewardsFor (account) {
   return (await dist.updateAccounting.call({ from: account }))[4];
 }
 
-describe('unstaking', function () {
+async function getRewardsFor (account) {
+  const r = await dist.updateAccounting.call({ from: account });
+  return {
+    totalRewards: r[4],
+    userRewards: r[6],
+    founderRewards: r[7]
+  };
+}
+
+describe('founder rewards', function () {
   beforeEach('setup contracts', async function () {
     await setupContractAndAccounts();
   });
@@ -130,7 +143,8 @@ describe('unstaking', function () {
         await dist.stake($AMPL(50), [], { from: anotherAccount });
         await timeController.advanceTime(ONE_YEAR);
         await dist.updateAccounting({ from: anotherAccount });
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 100);
+
+        checkRewardsApprox(100, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -138,13 +152,14 @@ describe('unstaking', function () {
         expect(
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(20));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 40);
+
+        checkRewardsApprox(40, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 90);
+        checkAmplAprox(b.sub(_b), 30 + (60 * userPercentage));
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -158,7 +173,9 @@ describe('unstaking', function () {
         const r = await dist.unstake($AMPL(30), [], { from: anotherAccount });
         expectEvent(r, 'TokensClaimed', {
           user: anotherAccount,
-          totalReward: $AMPL(60)
+          totalReward: $AMPL(60),
+          userReward: $AMPL(54),
+          founderReward: $AMPL(6)
         });
       });
     });
@@ -178,7 +195,8 @@ describe('unstaking', function () {
         await dist.stake($AMPL(500), [], { from: anotherAccount });
         await timeController.advanceTime(12 * ONE_HOUR);
         await dist.updateAccounting({ from: anotherAccount });
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 1000);
+
+        checkRewardsApprox(1000, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -186,13 +204,14 @@ describe('unstaking', function () {
         expect(
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(250));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 500); // (.5 * 1 * 1000) + 250
+
+        checkRewardsApprox(500, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 750);
+        checkAmplAprox(b.sub(_b), 250 + (500 * 0.9)); // Expet user to gain 500 - founderReward
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -206,7 +225,9 @@ describe('unstaking', function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
         expectEvent(r, 'TokensClaimed', {
           user: anotherAccount,
-          totalReward: $AMPL(500) // .5 * .75 * 1000
+          totalReward: $AMPL(500), // .5 * .75 * 1000
+          userReward: $AMPL(450),
+          founderReward: $AMPL(50)
         });
       });
     });
@@ -230,7 +251,7 @@ describe('unstaking', function () {
         await dist.updateAccounting({ from: anotherAccount });
       });
       it('checkTotalRewards', async function () {
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 51);
+        checkRewardsApprox(51, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -238,13 +259,14 @@ describe('unstaking', function () {
         expect(
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(70));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 40.8);
+        checkRewardsApprox(40.8, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 40.2);
+
+        checkAmplAprox(b.sub(_b), 30 + (10.2 * userPercentage));
       });
     });
 
@@ -263,7 +285,8 @@ describe('unstaking', function () {
         await dist.stake($AMPL(10), [], { from: anotherAccount });
         await timeController.advanceTime(ONE_YEAR);
         await dist.updateAccounting({ from: anotherAccount });
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 100);
+
+        checkRewardsApprox(100, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
       });
 
       it('should use updated user accounting', async function () {
@@ -309,13 +332,12 @@ describe('unstaking', function () {
         await dist.updateAccounting({ from: anotherAccount });
         await dist.updateAccounting();
         expect(await dist.totalStaked.call()).to.be.bignumber.equal($AMPL(100));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 45.6);
-        checkAmplAprox(await totalRewardsFor(owner), 30.4);
       });
       it('checkTotalRewards', async function () {
         expect(await dist.totalStaked.call()).to.be.bignumber.equal($AMPL(100));
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 45.6);
-        checkAmplAprox(await totalRewardsFor(owner), 30.4);
+
+        checkRewardsApprox(45.6, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(30.4, await getRewardsFor(owner), userPercentage, founderPercentage);
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -326,14 +348,14 @@ describe('unstaking', function () {
         expect(await dist.totalStakedFor.call(owner)).to.be.bignumber.equal(
           $AMPL(50)
         );
-        checkAmplAprox(await totalRewardsFor(anotherAccount), 18.24);
-        checkAmplAprox(await totalRewardsFor(owner), 30.4);
+        checkRewardsApprox(18.24, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(30.4, await getRewardsFor(owner), userPercentage, founderPercentage);
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 57.36);
+        checkAmplAprox(b.sub(_b), 30 + (27.36 * 0.9));
       });
     });
 
@@ -367,6 +389,10 @@ describe('unstaking', function () {
         expect(await dist.totalStaked.call()).to.be.bignumber.equal(
           $AMPL(18000)
         );
+
+        checkRewardsApprox(rewardsAnotherAccount, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(rewardsOwner, await getRewardsFor(owner), userPercentage, founderPercentage);
+
         checkAmplAprox(
           await totalRewardsFor(anotherAccount),
           rewardsAnotherAccount
@@ -401,11 +427,11 @@ describe('unstaking', function () {
         const b1 = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(10000), [], { from: anotherAccount });
         const b2 = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b2.sub(b1), 10000 + rewardsAnotherAccount);
+        checkAmplAprox(b2.sub(b1), 10000 + (rewardsAnotherAccount * userPercentage), 'anotherAccount');
         const b3 = await ampl.balanceOf.call(owner);
         await dist.unstake($AMPL(8000), []);
         const b4 = await ampl.balanceOf.call(owner);
-        checkAmplAprox(b4.sub(b3), 8000 + rewardsOwner);
+        checkAmplAprox(b4.sub(b3), 8000 + (rewardsOwner), 'owner'); // Expect owner to get user + founder rewards
       });
     });
   });
