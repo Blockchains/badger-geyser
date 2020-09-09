@@ -27,9 +27,24 @@ import "./TokenPool.sol";
 contract BadgerGeyser is IStaking, Ownable {
     using SafeMath for uint256;
 
-    event Staked(address indexed user, uint256 amount, uint256 total, bytes data);
-    event Unstaked(address indexed user, uint256 amount, uint256 total, bytes data);
-    event TokensClaimed(address indexed user, uint256 totalReward, uint256 userReward, uint256 founderReward);
+    event Staked(
+        address indexed user,
+        uint256 amount,
+        uint256 total,
+        bytes data
+    );
+    event Unstaked(
+        address indexed user,
+        uint256 amount,
+        uint256 total,
+        bytes data
+    );
+    event TokensClaimed(
+        address indexed user,
+        uint256 totalReward,
+        uint256 userReward,
+        uint256 founderReward
+    );
     event TokensLocked(uint256 amount, uint256 durationSec, uint256 total);
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
@@ -93,12 +108,11 @@ contract BadgerGeyser is IStaking, Ownable {
 
     UnlockSchedule[] public unlockSchedules;
 
-
     //
     // Founder Lock state
     //
     uint256 public constant MAX_PERCENTAGE = 100;
-    uint256 public founderRewardPercentage = 0; //0% - 100% 
+    uint256 public founderRewardPercentage = 0; //0% - 100%
     address public founderRewardAddress;
 
     /**
@@ -110,20 +124,39 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param bonusPeriodSec_ Length of time for bonus to increase linearly to max.
      * @param initialSharesPerToken Number of shares to mint per staking token on first stake.
      * @param globalStartTime_ Timestamp after which unlock schedules and staking can begin.
+     * @param founderRewardAddress_ Recipient address of founder rewards.
+     * @param founderRewardPercentage_ Pecentage of rewards claimed to be distributed for founder address.
      */
-    constructor(IERC20 stakingToken, IERC20 distributionToken, uint256 maxUnlockSchedules, 
-        uint256 startBonus_, uint256 bonusPeriodSec_, uint256 initialSharesPerToken,
-        uint256 globalStartTime_, address founderRewardAddress_, uint256 founderRewardPercentage_) public {
+    constructor(
+        IERC20 stakingToken,
+        IERC20 distributionToken,
+        uint256 maxUnlockSchedules,
+        uint256 startBonus_,
+        uint256 bonusPeriodSec_,
+        uint256 initialSharesPerToken,
+        uint256 globalStartTime_,
+        address founderRewardAddress_,
+        uint256 founderRewardPercentage_
+    ) public {
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
-        require(startBonus_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: start bonus too high');
+        require(
+            startBonus_ <= 10**BONUS_DECIMALS,
+            "BadgerGeyser: start bonus too high"
+        );
 
         // The founder reward must be some fraction of the max. (i.e. <= 100%)
-        require(founderRewardPercentage_ <= 10**BONUS_DECIMALS, 'BadgerGeyser: founder reward too high');
+        require(
+            founderRewardPercentage_ <= 10**BONUS_DECIMALS,
+            "BadgerGeyser: founder reward too high"
+        );
 
         // If no period is desired, instead set startBonus = 100%
         // and bonusPeriod to a small value like 1sec.
-        require(bonusPeriodSec_ != 0, 'BadgerGeyser: bonus period is zero');
-        require(initialSharesPerToken > 0, 'BadgerGeyser: initialSharesPerToken is zero');
+        require(bonusPeriodSec_ != 0, "BadgerGeyser: bonus period is zero");
+        require(
+            initialSharesPerToken > 0,
+            "BadgerGeyser: initialSharesPerToken is zero"
+        );
 
         _stakingPool = new TokenPool(stakingToken);
         _unlockedPool = new TokenPool(distributionToken);
@@ -162,7 +195,10 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to stake.
      * @param data Not used.
      */
-    function stake(uint256 amount, bytes calldata data) onlyAfterStart() external {
+    function stake(uint256 amount, bytes calldata data)
+        external
+        onlyAfterStart()
+    {
         _stakeFor(msg.sender, msg.sender, amount);
     }
 
@@ -172,7 +208,11 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to stake.
      * @param data Not used.
      */
-    function stakeFor(address user, uint256 amount, bytes calldata data) onlyAfterStart() external {
+    function stakeFor(
+        address user,
+        uint256 amount,
+        bytes calldata data
+    ) external onlyAfterStart() {
         _stakeFor(msg.sender, user, amount);
     }
 
@@ -182,16 +222,28 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param beneficiary User address who gains credit for this stake operation.
      * @param amount Number of deposit tokens to stake.
      */
-    function _stakeFor(address staker, address beneficiary, uint256 amount) private {
-        require(amount > 0, 'BadgerGeyser: stake amount is zero');
-        require(beneficiary != address(0), 'BadgerGeyser: beneficiary is zero address');
-        require(totalStakingShares == 0 || totalStaked() > 0,
-                'BadgerGeyser: Invalid state. Staking shares exist, but no staking tokens do');
+    function _stakeFor(
+        address staker,
+        address beneficiary,
+        uint256 amount
+    ) private {
+        require(amount > 0, "BadgerGeyser: stake amount is zero");
+        require(
+            beneficiary != address(0),
+            "BadgerGeyser: beneficiary is zero address"
+        );
+        require(
+            totalStakingShares == 0 || totalStaked() > 0,
+            "BadgerGeyser: Invalid state. Staking shares exist, but no staking tokens do"
+        );
 
         uint256 mintedStakingShares = (totalStakingShares > 0)
             ? totalStakingShares.mul(amount).div(totalStaked())
             : amount.mul(_initialSharesPerToken);
-        require(mintedStakingShares > 0, 'BadgerGeyser: Stake amount is too small');
+        require(
+            mintedStakingShares > 0,
+            "BadgerGeyser: Stake amount is too small"
+        );
 
         updateAccounting();
 
@@ -209,8 +261,14 @@ contract BadgerGeyser is IStaking, Ownable {
         // _lastAccountingTimestampSec = now;
 
         // interactions
-        require(_stakingPool.token().transferFrom(staker, address(_stakingPool), amount),
-            'BadgerGeyser: transfer into staking pool failed');
+        require(
+            _stakingPool.token().transferFrom(
+                staker,
+                address(_stakingPool),
+                amount
+            ),
+            "BadgerGeyser: transfer into staking pool failed"
+        );
 
         emit Staked(beneficiary, amount, totalStakedFor(beneficiary), "");
     }
@@ -221,7 +279,10 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @param data Not used.
      */
-    function unstake(uint256 amount, bytes calldata data) onlyAfterStart() external {
+    function unstake(uint256 amount, bytes calldata data)
+        external
+        onlyAfterStart()
+    {
         _unstake(amount);
     }
 
@@ -229,9 +290,14 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @return The total number of distribution tokens that would be rewarded.
      */
-    function unstakeQuery(uint256 amount) 
-        public 
-        returns (uint256 totalReward, uint256 userReward, uint256 founderReward) {
+    function unstakeQuery(uint256 amount)
+        public
+        returns (
+            uint256 totalReward,
+            uint256 userReward,
+            uint256 founderReward
+        )
+    {
         return _unstake(amount);
     }
 
@@ -241,15 +307,29 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param amount Number of deposit tokens to unstake / withdraw.
      * @return The total number of distribution tokens rewarded.
      */
-    function _unstake(uint256 amount) private returns (uint256 totalReward, uint256 userReward, uint256 founderReward) {
+    function _unstake(uint256 amount)
+        private
+        returns (
+            uint256 totalReward,
+            uint256 userReward,
+            uint256 founderReward
+        )
+    {
         updateAccounting();
 
         // checks
-        require(amount > 0, 'BadgerGeyser: unstake amount is zero');
-        require(totalStakedFor(msg.sender) >= amount,
-            'BadgerGeyser: unstake amount is greater than total user stakes');
-        uint256 stakingSharesToBurn = totalStakingShares.mul(amount).div(totalStaked());
-        require(stakingSharesToBurn > 0, 'BadgerGeyser: Unable to unstake amount this small');
+        require(amount > 0, "BadgerGeyser: unstake amount is zero");
+        require(
+            totalStakedFor(msg.sender) >= amount,
+            "BadgerGeyser: unstake amount is greater than total user stakes"
+        );
+        uint256 stakingSharesToBurn = totalStakingShares.mul(amount).div(
+            totalStaked()
+        );
+        require(
+            stakingSharesToBurn > 0,
+            "BadgerGeyser: Unable to unstake amount this small"
+        );
 
         // 1. User Accounting
         UserTotals storage totals = _userTotals[msg.sender];
@@ -265,27 +345,51 @@ contract BadgerGeyser is IStaking, Ownable {
             uint256 newStakingShareSecondsToBurn = 0;
             if (lastStake.stakingShares <= sharesLeftToBurn) {
                 // fully redeem a past stake
-                newStakingShareSecondsToBurn = lastStake.stakingShares.mul(stakeTimeSec);
-                rewardAmount = computeNewReward(rewardAmount, newStakingShareSecondsToBurn, stakeTimeSec);
-                stakingShareSecondsToBurn = stakingShareSecondsToBurn.add(newStakingShareSecondsToBurn);
-                sharesLeftToBurn = sharesLeftToBurn.sub(lastStake.stakingShares);
+                newStakingShareSecondsToBurn = lastStake.stakingShares.mul(
+                    stakeTimeSec
+                );
+                rewardAmount = computeNewReward(
+                    rewardAmount,
+                    newStakingShareSecondsToBurn,
+                    stakeTimeSec
+                );
+                stakingShareSecondsToBurn = stakingShareSecondsToBurn.add(
+                    newStakingShareSecondsToBurn
+                );
+                sharesLeftToBurn = sharesLeftToBurn.sub(
+                    lastStake.stakingShares
+                );
                 accountStakes.length--;
             } else {
                 // partially redeem a past stake
-                newStakingShareSecondsToBurn = sharesLeftToBurn.mul(stakeTimeSec);
-                rewardAmount = computeNewReward(rewardAmount, newStakingShareSecondsToBurn, stakeTimeSec);
-                stakingShareSecondsToBurn = stakingShareSecondsToBurn.add(newStakingShareSecondsToBurn);
-                lastStake.stakingShares = lastStake.stakingShares.sub(sharesLeftToBurn);
+                newStakingShareSecondsToBurn = sharesLeftToBurn.mul(
+                    stakeTimeSec
+                );
+                rewardAmount = computeNewReward(
+                    rewardAmount,
+                    newStakingShareSecondsToBurn,
+                    stakeTimeSec
+                );
+                stakingShareSecondsToBurn = stakingShareSecondsToBurn.add(
+                    newStakingShareSecondsToBurn
+                );
+                lastStake.stakingShares = lastStake.stakingShares.sub(
+                    sharesLeftToBurn
+                );
                 sharesLeftToBurn = 0;
             }
         }
-        totals.stakingShareSeconds = totals.stakingShareSeconds.sub(stakingShareSecondsToBurn);
+        totals.stakingShareSeconds = totals.stakingShareSeconds.sub(
+            stakingShareSecondsToBurn
+        );
         totals.stakingShares = totals.stakingShares.sub(stakingSharesToBurn);
         // Already set in updateAccounting
         // totals.lastAccountingTimestampSec = now;
 
         // 2. Global Accounting
-        _totalStakingShareSeconds = _totalStakingShareSeconds.sub(stakingShareSecondsToBurn);
+        _totalStakingShareSeconds = _totalStakingShareSeconds.sub(
+            stakingShareSecondsToBurn
+        );
         totalStakingShares = totalStakingShares.sub(stakingSharesToBurn);
         // Already set in updateAccounting
         // _lastAccountingTimestampSec = now;
@@ -294,24 +398,32 @@ contract BadgerGeyser is IStaking, Ownable {
         (userReward, founderReward) = computeFounderReward(totalReward);
 
         // interactions
-        require(_stakingPool.transfer(msg.sender, amount),
-            'BadgerGeyser: transfer out of staking pool failed');
+        require(
+            _stakingPool.transfer(msg.sender, amount),
+            "BadgerGeyser: transfer out of staking pool failed"
+        );
 
         if (userReward > 0) {
-        require(_unlockedPool.transfer(msg.sender, userReward),
-            'BadgerGeyser: transfer to user out of unlocked pool failed');
+            require(
+                _unlockedPool.transfer(msg.sender, userReward),
+                "BadgerGeyser: transfer to user out of unlocked pool failed"
+            );
         }
 
         if (founderReward > 0) {
-        require(_unlockedPool.transfer(founderRewardAddress, founderReward),
-            'BadgerGeyser: transfer to founder out of unlocked pool failed');
+            require(
+                _unlockedPool.transfer(founderRewardAddress, founderReward),
+                "BadgerGeyser: transfer to founder out of unlocked pool failed"
+            );
         }
 
         emit Unstaked(msg.sender, amount, totalStakedFor(msg.sender), "");
         emit TokensClaimed(msg.sender, totalReward, userReward, founderReward);
 
-        require(totalStakingShares == 0 || totalStaked() > 0,
-                "BadgerGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
+        require(
+            totalStakingShares == 0 || totalStaked() > 0,
+            "BadgerGeyser: Error unstaking. Staking shares exist, but no staking tokens do"
+        );
     }
 
     /**
@@ -319,15 +431,21 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param totalReward Amount of reward to split.
      * @return Reward amounts for user and founder.
      */
-    function computeFounderReward(uint256 totalReward) public view returns (uint256 userReward, uint256 founderReward) {
+    function computeFounderReward(uint256 totalReward)
+        public
+        view
+        returns (uint256 userReward, uint256 founderReward)
+    {
         if (founderRewardPercentage == 0) {
-            userReward = totalReward; 
-            founderReward = 0; 
+            userReward = totalReward;
+            founderReward = 0;
         } else if (founderRewardPercentage == 100) {
-            userReward = 0; 
-            founderReward = totalReward; 
+            userReward = 0;
+            founderReward = totalReward;
         } else {
-            founderReward = totalReward.mul(founderRewardPercentage).div(MAX_PERCENTAGE);
+            founderReward = totalReward.mul(founderRewardPercentage).div(
+                MAX_PERCENTAGE
+            );
             userReward = totalReward.sub(founderReward); // Extra dust goes to use due to truncated rounding
         }
     }
@@ -346,23 +464,24 @@ contract BadgerGeyser is IStaking, Ownable {
      * @return Updated amount of distribution tokens to award, with any bonus included on the
      *         newly added tokens.
      */
-    function computeNewReward(uint256 currentRewardTokens,
-                                uint256 stakingShareSeconds,
-                                uint256 stakeTimeSec) private view returns (uint256) {
-
-        uint256 newRewardTokens =
-            totalUnlocked()
-            .mul(stakingShareSeconds)
-            .div(_totalStakingShareSeconds);
+    function computeNewReward(
+        uint256 currentRewardTokens,
+        uint256 stakingShareSeconds,
+        uint256 stakeTimeSec
+    ) private view returns (uint256) {
+        uint256 newRewardTokens = totalUnlocked().mul(stakingShareSeconds).div(
+            _totalStakingShareSeconds
+        );
 
         if (stakeTimeSec >= bonusPeriodSec) {
             return currentRewardTokens.add(newRewardTokens);
         }
 
         uint256 oneHundredPct = 10**BONUS_DECIMALS;
-        uint256 bonusedReward =
-            startBonus
-            .add(oneHundredPct.sub(startBonus).mul(stakeTimeSec).div(bonusPeriodSec))
+        uint256 bonusedReward = startBonus
+            .add(
+            oneHundredPct.sub(startBonus).mul(stakeTimeSec).div(bonusPeriodSec)
+        )
             .mul(newRewardTokens)
             .div(oneHundredPct);
         return currentRewardTokens.add(bonusedReward);
@@ -373,8 +492,12 @@ contract BadgerGeyser is IStaking, Ownable {
      * @return The number of staking tokens deposited for addr.
      */
     function totalStakedFor(address addr) public view returns (uint256) {
-        return totalStakingShares > 0 ?
-            totalStaked().mul(_userTotals[addr].stakingShares).div(totalStakingShares) : 0;
+        return
+            totalStakingShares > 0
+                ? totalStaked().mul(_userTotals[addr].stakingShares).div(
+                    totalStakingShares
+                )
+                : 0;
     }
 
     /**
@@ -400,40 +523,54 @@ contract BadgerGeyser is IStaking, Ownable {
      * @return [1] balance of the unlocked pool
      * @return [2] caller's staking share seconds
      * @return [3] global staking share seconds
-     * @return [4] Rewards caller has accumulated, optimistically assumes max time-bonus.
+     * @return [4] Total rewards caller has accumulated, including founder rewards, optimistically assumes max time-bonus.
      * @return [5] block timestamp
-     * @return [6] Rewards caller has accumulated, minus founder rewards
+     * @return [6] Rewards caller has accumulated (minus founder rewards)
      * @return [7] Founder rewards portion of accumulation
      */
-    function updateAccounting() public returns (
-        uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
-
+    function updateAccounting()
+        public
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         unlockTokens();
 
         // Global accounting
-        uint256 newStakingShareSeconds =
-            now
+        uint256 newStakingShareSeconds = now
             .sub(_lastAccountingTimestampSec)
             .mul(totalStakingShares);
-        _totalStakingShareSeconds = _totalStakingShareSeconds.add(newStakingShareSeconds);
+        _totalStakingShareSeconds = _totalStakingShareSeconds.add(
+            newStakingShareSeconds
+        );
         _lastAccountingTimestampSec = now;
 
         // User Accounting
         UserTotals storage totals = _userTotals[msg.sender];
-        uint256 newUserStakingShareSeconds =
-            now
+        uint256 newUserStakingShareSeconds = now
             .sub(totals.lastAccountingTimestampSec)
             .mul(totals.stakingShares);
-        totals.stakingShareSeconds =
-            totals.stakingShareSeconds
-            .add(newUserStakingShareSeconds);
+        totals.stakingShareSeconds = totals.stakingShareSeconds.add(
+            newUserStakingShareSeconds
+        );
         totals.lastAccountingTimestampSec = now;
 
         uint256 totalUserRewards = (_totalStakingShareSeconds > 0)
-            ? totalUnlocked().mul(totals.stakingShareSeconds).div(_totalStakingShareSeconds)
+            ? totalUnlocked().mul(totals.stakingShareSeconds).div(
+                _totalStakingShareSeconds
+            )
             : 0;
 
-            (uint256 userRewards, uint256 founderRewards) = computeFounderReward(totalUserRewards);
+        (uint256 userRewards, uint256 founderRewards) = computeFounderReward(
+            totalUserRewards
+        );
 
         return (
             totalLocked(),
@@ -476,11 +613,20 @@ contract BadgerGeyser is IStaking, Ownable {
      * @param durationSec Length of time to linear unlock the tokens.
      * @param startTime Time to start distribution.
      */
-    function lockTokens(uint256 amount, uint256 durationSec, uint256 startTime) external onlyOwner {
-        require(unlockSchedules.length < _maxUnlockSchedules,
-            'BadgerGeyser: reached maximum unlock schedules');
+    function lockTokens(
+        uint256 amount,
+        uint256 durationSec,
+        uint256 startTime
+    ) external onlyOwner {
+        require(
+            unlockSchedules.length < _maxUnlockSchedules,
+            "BadgerGeyser: reached maximum unlock schedules"
+        );
 
-        require (startTime >= globalStartTime, 'BadgerGeyser: schedule cannot start before global start time');
+        require(
+            startTime >= globalStartTime,
+            "BadgerGeyser: schedule cannot start before global start time"
+        );
 
         // Update lockedTokens amount before using it in computations after.
         updateAccounting();
@@ -500,8 +646,14 @@ contract BadgerGeyser is IStaking, Ownable {
 
         totalLockedShares = totalLockedShares.add(mintedLockedShares);
 
-        require(_lockedPool.token().transferFrom(msg.sender, address(_lockedPool), amount),
-            'BadgerGeyser: transfer into locked pool failed');
+        require(
+            _lockedPool.token().transferFrom(
+                msg.sender,
+                address(_lockedPool),
+                amount
+            ),
+            "BadgerGeyser: transfer into locked pool failed"
+        );
         emit TokensLocked(amount, durationSec, totalLocked());
     }
 
@@ -521,13 +673,17 @@ contract BadgerGeyser is IStaking, Ownable {
             for (uint256 s = 0; s < unlockSchedules.length; s++) {
                 unlockedShares = unlockedShares.add(unlockScheduleShares(s));
             }
-            unlockedTokens = unlockedShares.mul(lockedTokens).div(totalLockedShares);
+            unlockedTokens = unlockedShares.mul(lockedTokens).div(
+                totalLockedShares
+            );
             totalLockedShares = totalLockedShares.sub(unlockedShares);
         }
 
         if (unlockedTokens > 0) {
-            require(_lockedPool.transfer(address(_unlockedPool), unlockedTokens),
-                'BadgerGeyser: transfer out of locked pool failed');
+            require(
+                _lockedPool.transfer(address(_unlockedPool), unlockedTokens),
+                "BadgerGeyser: transfer out of locked pool failed"
+            );
             emit TokensUnlocked(unlockedTokens, totalLocked());
         }
 
@@ -544,7 +700,7 @@ contract BadgerGeyser is IStaking, Ownable {
     function unlockScheduleShares(uint256 s) private returns (uint256) {
         UnlockSchedule storage schedule = unlockSchedules[s];
 
-        if(schedule.unlockedShares >= schedule.initialLockedShares) {
+        if (schedule.unlockedShares >= schedule.initialLockedShares) {
             return 0;
         }
 
@@ -555,10 +711,13 @@ contract BadgerGeyser is IStaking, Ownable {
         uint256 sharesToUnlock = 0;
         // Special case to handle any leftover dust from integer division
         if (now >= schedule.endAtSec) {
-            sharesToUnlock = (schedule.initialLockedShares.sub(schedule.unlockedShares));
+            sharesToUnlock = (
+                schedule.initialLockedShares.sub(schedule.unlockedShares)
+            );
             schedule.lastUnlockTimestampSec = schedule.endAtSec;
         } else {
-            sharesToUnlock = now.sub(schedule.lastUnlockTimestampSec)
+            sharesToUnlock = now
+                .sub(schedule.lastUnlockTimestampSec)
                 .mul(schedule.initialLockedShares)
                 .div(schedule.durationSec);
             schedule.lastUnlockTimestampSec = now;
