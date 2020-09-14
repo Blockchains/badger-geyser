@@ -27,6 +27,21 @@ A couple of modifications allow the Geyser to start distribution at a pre-config
 
 - The unlock schedule for each lockTokens() action does not start at the block timestamp in which the transaction executes, rather starting at a specified time. This time must be after the global start time.
 
+- Split lockTokens() into an external and internal method (_lockTokens()) for extensibility by child contracts.
+
+- Change all 'private' members and functions to 'internal'
+
+- Functionality moved into BaseGeyser to allow for inheritance by multiple geyser types, including the FutureGeyser:
+
+## Future Geyser
+A Geyser variant where the staking token must be set by the owner after creation to enable token locking and subsequent staking & unstaking activities. 
+This allows for Geysers to be created which will be used with LP tokens that do not exist at creation. It's intended to be used with the StakingEscrow to 'pledge' the tokens to the Geyser once the LP token is created.
+
+- Does not set stakingToken or create the _stakingPool TokenPool on constructor
+- Flag isStakingTokenSet can be used 
+- getStakingToken() returns 0 address before the staking token is set
+
+
 ## Configuration Notes
 The configuration of the distribution pools additionally 'removes' some functionality from the Ampleforth implementation. This implementation is designed to be used with certain parameters.
 
@@ -42,8 +57,8 @@ The configuration of the distribution pools additionally 'removes' some function
 
 ## Expected Behavior
 The owner of the pool should be able to lock distribution tokens, to start unlocking at a specified time for a specified duration.
-
 While the staking pool is active (after it's global start) users should be able to stake and unstake at-will. 
+
 ## Table of Contents
 
 - [Install](#install)
