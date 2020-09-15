@@ -41,6 +41,11 @@ This allows for Geysers to be created which will be used with LP tokens that do 
 - Flag isStakingTokenSet can be used 
 - getStakingToken() returns 0 address before the staking token is set
 
+#### Future Geyser: Intended Action Flow
+0. The FutureGeyser & StakingEscrow are created, and the owner of the FutureGeyser is set to the StakingEscrow.
+1. Funds intended to be distributed are deposited into the StakingEscrow.
+2. Staking contract address is determined, and set on the Geyser by the StakingEscrow owner.
+3. Tokens can be locked from the StakingEscrow as the per standard variant.
 
 ## Configuration Notes
 The configuration of the distribution pools additionally 'removes' some functionality from the Ampleforth implementation. This implementation is designed to be used with certain parameters.
