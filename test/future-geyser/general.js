@@ -7,7 +7,7 @@ const {
   time,
 } = require("@openzeppelin/test-helpers");
 const { expect } = require("chai");
-const { setupContractAndAccounts } = require("./setup");
+const { setupFutureGeyser } = require("./setup");
 const _require = require("app-root-path").require;
 const BlockchainCaller = _require("/util/blockchain_caller");
 const chain = new BlockchainCaller(web3);
@@ -35,19 +35,13 @@ async function totalRewardsFor(account) {
 let ampl, dist, stakingEscrow, owner, anotherAccount;
 describe("General", function() {
   beforeEach("setup contracts", async function() {
-    // const setup = await setupContractAndAccounts();
-    // ampl = setup.ampl;
-    // dist = setup.dist;
-    // stakingEscrow = setup.stakingEscrow;
-    // owner = setup.owner;
-    // anotherAccount = setup.anotherAccount;
     ({
       ampl,
       dist,
       stakingEscrow,
       owner,
       anotherAccount,
-    } = await setupContractAndAccounts());
+    } = await setupFutureGeyser());
   });
 
   it("non-owner should not be able to set staking token", async function() {
@@ -99,7 +93,9 @@ describe("General", function() {
       );
       errorMessage = actualError;
     }
-    expect(errorMessage, "Should revert").to.be.equal("Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner.");
+    expect(errorMessage, "Should revert").to.be.equal(
+      "Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner."
+    );
   });
 
   it("Owner should not be able to lock tokens before setting staking token", async function() {

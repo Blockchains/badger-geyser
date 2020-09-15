@@ -14,7 +14,8 @@ const StakingEscrow = contract.fromArtifact("StakingEscrow");
 const InitialSharesPerToken = 10 ** 6;
 
 let ampl, dist, stakingEscrow, owner, anotherAccount;
-async function setupContractAndAccounts() {
+
+async function setupFutureGeyser(founderPercentage = 0) {
   const accounts = await chain.getUserAccounts();
   owner = web3.utils.toChecksumAddress(accounts[0]);
   anotherAccount = web3.utils.toChecksumAddress(accounts[8]);
@@ -22,6 +23,8 @@ async function setupContractAndAccounts() {
   ampl = await AmpleforthErc20.new();
   await ampl.initialize(owner);
   await ampl.setMonetaryPolicy(owner);
+
+  const userPercentage = 1 - founderPercentage;
 
   const startBonus = 100;
   const bonusPeriod = 1;
@@ -34,7 +37,7 @@ async function setupContractAndAccounts() {
     InitialSharesPerToken,
     0,
     owner,
-    0
+    founderPercentage
   );
 
   stakingEscrow = await StakingEscrow.new(dist.address);
@@ -46,10 +49,10 @@ async function setupContractAndAccounts() {
   await ampl.approve(dist.address, $AMPL(50000), { from: owner });
 
   return {
-    ampl, dist, stakingEscrow, owner, anotherAccount
+    ampl, dist, stakingEscrow, owner, anotherAccount, founderPercentage, userPercentage
   }
 }
 
 module.exports = {
-    setupContractAndAccounts
+  setupFutureGeyser
 }

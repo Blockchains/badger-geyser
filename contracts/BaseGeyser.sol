@@ -117,7 +117,7 @@ contract BaseGeyser is IStaking, Ownable {
 
 
     modifier onlyAfterStart() {
-        require(now >= globalStartTime, "Distribution not started");
+        require(now >= globalStartTime, "BadgerGeyser: Distribution not started");
         _;
     }
 
