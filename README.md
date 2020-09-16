@@ -1,7 +1,7 @@
 # Badger Geyser
 A smart-contract based mechanism to distribute tokens over time, inspired loosely by Compound and Uniswap. Based on the Ampleforth [Token Geyser](https://github.com/ampleforth/token-geyser/blob/master/contracts/BadgerGeyser.sol) implementation.
 
-Within the Badger system, Geysers are used to mediate the initial distribution of governance and DIGG tokens.
+Within the Badger system, Geysers are used to mediate the initial distribution of BADGER and DIGG tokens.
 
 Distribution tokens are added to a locked pool in the contract and become unlocked over time according to a once-configurable unlock schedule. Once unlocked, they are available to be claimed by users.
 
@@ -14,41 +14,45 @@ Users are able to increase, decrease, or remove their staked tokens, and therefo
 The audit for the original Ampleforth implementation audit can be found [here](https://github.com/ampleforth/ampleforth-audits/blob/master/token-geyser/v1.0.0/CertiK_Verification_Report.pdf)
 
 # Contract Overview
-The intent of the Geyser is to distribute the distributionToken over time according to the unlockSchedules. The unlockSchedules are set by the contract owner by locking the distributionToken via lockTokens(). Any user is able to gain a share of the distributionToken by locking amounts of the stakingToken within the Geyser. 
+The intent of the Geyser is to distribute the distributionToken over time according to the unlockSchedules. The unlockSchedules are set by the contract owner by locking the distributionToken via the lockTokens() method. Any user is able to gain a share of the distributionToken by staking the stakingToken within the Geyser. 
 
-The Geyser is made from several components:
+The Geyser is composed from several smart contract components:
 - The Geyser contract itself
-- Several pool helper contracts to hold balances for locked & unlocked distributionTokens, and staked stakingTokens.
+- Several TokenPool helper contracts to isolate balances for locked & unlocked distributionTokens, and staked stakingTokens.
 
 ## Modifications from Ampleforth
-A couple of modifications allow the Geyser to start distribution at a pre-configured time, rather than at the time of deployment.
+### Functionality
+ - Each unlock schedule has a specified start time, allowing the Geyser to start distribution at a pre-configured time, rather than at the time the tokens are locked.
 
-- There is a global start time, set on constructor. Before this time no staking or unstaking can occur.
+- There is a global start time, set on constructor. Before this time, no staking or unstaking can occur. Token locks cannot be scheduled before this time.
 
-- The unlock schedule for each lockTokens() action does not start at the block timestamp in which the transaction executes, rather starting at a specified time. This time must be after the global start time.
+- There is an optional founder reward that distributes a fixed percentage of rewards to a fixed address. These are set on constructor and cannot be changed.
 
-- Split lockTokens() into an external and internal method (_lockTokens()) for extensibility by child contracts.
+### Structure
+- lockTokens() is split into an external and internal method (`_lockTokens()`) for extensibility by child contracts.
 
-- Change all 'private' members and functions to 'internal'
+- The bulk of functionality moved into the BaseGeyser contract, which is a parent of BadgerGeyser. This allows for inheritance by multiple geyser types, including the FutureGeyser, explained below.
 
-- Functionality moved into BaseGeyser to allow for inheritance by multiple geyser types, including the FutureGeyser:
+- All 'private' members and functions to were changed to 'internal' to allow visibility and modification by inheriting contracts.
 
 ## Future Geyser
-A Geyser variant where the staking token must be set by the owner after creation to enable token locking and subsequent staking & unstaking activities. 
-This allows for Geysers to be created which will be used with LP tokens that do not exist at creation. It's intended to be used with the StakingEscrow to 'pledge' the tokens to the Geyser once the LP token is created.
+A Geyser variant where the staking token must be set by the owner _after_ creation, rather than in the constructor. This allows for Geysers to be created which will be used with LP tokens that do not exist at creation. It's intended to be used with the StakingEscrow helper contract to pledge the tokens to the Geyser once the LP token is created. For safety, no token locking and subsequent staking & unstaking activities are possible before the token address is set.
 
-- Does not set stakingToken or create the _stakingPool TokenPool on constructor
-- Flag isStakingTokenSet can be used 
-- getStakingToken() returns 0 address before the staking token is set
+#### Modifications
+- Does not set stakingToken or create the _stakingPool TokenPool on constructor.
+- The `setStakingToken()` method can be called by the owner to set the staking contract.
+- After this point, it behaves identically to a standard BadgerGeyser.
+- Public flag `isStakingTokenSet` can be read to see if the staking token is set.
+- The `getStakingToken()` methods returns the 0 address before the staking token is set.
 
-#### Future Geyser: Intended Action Flow
-0. The FutureGeyser & StakingEscrow are created, and the owner of the FutureGeyser is set to the StakingEscrow.
-1. Funds intended to be distributed are deposited into the StakingEscrow.
-2. Staking contract address is determined, and set on the Geyser by the StakingEscrow owner.
-3. Tokens can be locked from the StakingEscrow as the per standard variant.
+#### Intended Action Flow
+1. The FutureGeyser & StakingEscrow are created, and the owner of the FutureGeyser is set to the StakingEscrow.
+2. Funds intended to be distributed are deposited into the StakingEscrow.
+3. The staking contract address is determined, and set on the Geyser by the StakingEscrow owner.
+4. Tokens can now be locked from the StakingEscrow as the per standard variant, and staking can subsequently begin.
 
 ## Configuration Notes
-The configuration of the distribution pools additionally 'removes' some functionality from the Ampleforth implementation. This implementation is designed to be used with certain parameters.
+The configuration of the distribution pools used in the Badger system additionally 'removes' some functionality from the Ampleforth implementation.
 
 ### startBonus & bonusPeriodSec
 - These parameters are used to reward users a higher proportion of shares for staking for longer periods of time
