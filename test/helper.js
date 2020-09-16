@@ -7,6 +7,8 @@ const { expect } = require('chai');
 const PERC_DECIMALS = 2;
 const AMPL_DECIMALS = 9;
 
+const ONE_YEAR = 1 * 365 * 24 * 3600;
+
 function $AMPL (x) {
   return new BN(x * 10 ** AMPL_DECIMALS);
 }
@@ -22,11 +24,7 @@ async function invokeRebase (ampl, perc) {
 
 function checkRewardsApprox (expected, rewards, userPercentage, founderPercentage) {
   const {totalRewards, userRewards, founderRewards} = rewards;
-  console.log('checkRewards', {
-    totalRewards: totalRewards.toString(),
-    userRewards: userRewards.toString(),
-    founderRewards: founderRewards.toString()
-  });
+
   checkAmplAprox(totalRewards, expected, 'totalRewards');
   checkAmplAprox(userRewards, expected * userPercentage, 'userRewards');
   checkAmplAprox(founderRewards, expected * founderPercentage, 'founderRewards');
@@ -129,6 +127,39 @@ async function lockTokensAtLatestTime (geyser, amount, duration) {
   return (await geyser.lockTokens(amount, duration, now));
 }
 
+async function lockTokensAtLatestTimeFromStakingEscrow (stakingEscrow, amount, duration, owner) {
+  const now = await time.latest();
+  await setTimeForNextTransaction(now);
+  return (await stakingEscrow.lockTokens(amount, duration, now, { from: owner }));
+}
+
+async function setSnapshot () {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_snapshot',
+      id: new Date().getTime()
+    }, (err, snapshotId) => {
+      if (err) { return reject(err); }
+      return resolve(snapshotId);
+    });
+  });
+}
+
+async function revertSnapshot (id) {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_revert',
+      params: [id],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if (err) { return reject(err); }
+      return resolve(result);
+    });
+  });
+}
+
 async function setTimeForNextTransaction (target) {
   if (!BN.isBN(target)) {
     target = new BN(target);
@@ -150,11 +181,16 @@ module.exports = {
   checkSharesAprox,
   invokeRebase,
   $AMPL,
+  increaseTimeForNextTransaction,
   setTimeForNextTransaction,
   TimeController,
   printMethodOutput,
   printStatus,
   now,
   lockTokensAtLatestTime,
-  checkRewardsApprox
+  lockTokensAtLatestTimeFromStakingEscrow,
+  checkRewardsApprox,
+  ONE_YEAR,
+  setSnapshot,
+  revertSnapshot
 };
