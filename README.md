@@ -29,9 +29,11 @@ The Geyser is composed from several smart contract components:
 - There is an optional founder reward that distributes a fixed percentage of rewards to a fixed address. These are set on constructor and cannot be changed.
 
 ### Structure
-- lockTokens() is split into an external and internal method (`_lockTokens()`) for extensibility by child contracts.
+The contract sturcture was modified slightly to allow for extensibility through inheritance, such as by the FutureGeyser, which is explained below.
 
-- The bulk of functionality moved into the BaseGeyser contract, which is a parent of BadgerGeyser. This allows for inheritance by multiple geyser types, including the FutureGeyser, explained below.
+- lockTokens() is split into an external and internal method (`_lockTokens()`)
+
+- The bulk of functionality moved into the BaseGeyser contract, which is a parent of BadgerGeyser.
 
 - All 'private' members and functions to were changed to 'internal' to allow visibility and modification by inheriting contracts.
 
@@ -51,6 +53,9 @@ A Geyser variant where the staking token must be set by the owner _after_ creati
 3. The staking contract address is determined, and set on the Geyser by the StakingEscrow owner.
 4. Tokens can now be locked from the StakingEscrow as the per standard variant, and staking can subsequently begin.
 
+#### Founder Reward
+When unstaking, a flat percentage of accured rewards can optionally be sent to a founder address, specified on contract creation.
+
 ## Configuration Notes
 The configuration of the distribution pools used in the Badger system additionally 'removes' some functionality from the Ampleforth implementation.
 
@@ -63,6 +68,9 @@ The configuration of the distribution pools used in the Badger system additional
 // and bonusPeriod to a small value like 1sec.
 ```
 - In the Badger system, each staking pool has only one unlock schedule. The maxUnlockSchedules is set to 1 in the constructor to enforce this property.
+
+#### founderRewardPercentage
+10%
 
 ## Expected Behavior
 The owner of the pool should be able to lock distribution tokens, to start unlocking at a specified time for a specified duration.
