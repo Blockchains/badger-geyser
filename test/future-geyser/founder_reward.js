@@ -17,7 +17,7 @@ const {
   invokeRebase,
   checkAmplAprox,
   TimeController,
-  lockTokensAtLatestTime,
+  lockTokensAtLatestTimeFromStakingEscrow,
   checkRewardsApprox
 } = _require('/test/helper');
 
@@ -41,6 +41,9 @@ async function getRewardsFor (account) {
   };
 }
 
+founderPercentage = 0.1;
+userPercentage = 0.9;
+
 describe('founder rewards', function () {
   beforeEach('setup contracts', async function () {
     ({
@@ -48,10 +51,12 @@ describe('founder rewards', function () {
       dist,
       stakingEscrow,
       owner,
-      anotherAccount,
-      userPercentage,
-      founderPercentage
-    } = await setupFutureGeyser(0.1));  
+      anotherAccount
+    } = await setupFutureGeyser(10));
+
+    await stakingEscrow.setStakingToken(ampl.address, {
+      from: owner
+    });
   });
 
   describe('unstake', function () {
@@ -115,14 +120,24 @@ describe('founder rewards', function () {
       // user's final balance is 90 ampl, (20 remains staked), eligible rewards (40 ampl)
       const timeController = new TimeController();
       beforeEach(async function () {
-        await lockTokensAtLatestTime(dist, $AMPL(100), ONE_YEAR);
+        await lockTokensAtLatestTimeFromStakingEscrow(
+          stakingEscrow,
+          $AMPL(100),
+          ONE_YEAR,
+          owner
+        );
 
         await timeController.initialize();
         await dist.stake($AMPL(50), [], { from: anotherAccount });
         await timeController.advanceTime(ONE_YEAR);
         await dist.updateAccounting({ from: anotherAccount });
 
-        checkRewardsApprox(100, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          100,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -131,13 +146,18 @@ describe('founder rewards', function () {
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(20));
 
-        checkRewardsApprox(40, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          40,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 30 + (60 * userPercentage));
+        checkAmplAprox(b.sub(_b), 30 + 60 * userPercentage);
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -168,13 +188,23 @@ describe('founder rewards', function () {
       const timeController = new TimeController();
       const ONE_HOUR = 3600;
       beforeEach(async function () {
-        await lockTokensAtLatestTime(dist, $AMPL(1000), ONE_HOUR, 0);
+        await lockTokensAtLatestTimeFromStakingEscrow(
+          stakingEscrow,
+          $AMPL(1000),
+          ONE_HOUR,
+          owner
+        );
         timeController.initialize();
         await dist.stake($AMPL(500), [], { from: anotherAccount });
         await timeController.advanceTime(12 * ONE_HOUR);
         await dist.updateAccounting({ from: anotherAccount });
 
-        checkRewardsApprox(1000, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          1000,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -183,13 +213,18 @@ describe('founder rewards', function () {
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(250));
 
-        checkRewardsApprox(500, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          500,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(250), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 250 + (500 * 0.9)); // Expet user to gain 500 - founderReward
+        checkAmplAprox(b.sub(_b), 250 + 500 * 0.9); // Expet user to gain 500 - founderReward
       });
       it('should log Unstaked', async function () {
         const r = await dist.unstake($AMPL(250), [], { from: anotherAccount });
@@ -217,7 +252,12 @@ describe('founder rewards', function () {
       // user's final balance is 40 ampl
       const timeController = new TimeController();
       beforeEach(async function () {
-        await lockTokensAtLatestTime(dist, $AMPL(100), ONE_YEAR);
+        await lockTokensAtLatestTimeFromStakingEscrow(
+          stakingEscrow,
+          $AMPL(100),
+          ONE_YEAR,
+          owner
+        );
 
         await timeController.initialize();
         await timeController.advanceTime(ONE_YEAR / 100);
@@ -229,7 +269,12 @@ describe('founder rewards', function () {
         await dist.updateAccounting({ from: anotherAccount });
       });
       it('checkTotalRewards', async function () {
-        checkRewardsApprox(51, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          51,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -237,14 +282,19 @@ describe('founder rewards', function () {
         expect(
           await dist.totalStakedFor.call(anotherAccount)
         ).to.be.bignumber.equal($AMPL(70));
-        checkRewardsApprox(40.8, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          40.8,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
 
-        checkAmplAprox(b.sub(_b), 30 + (10.2 * userPercentage));
+        checkAmplAprox(b.sub(_b), 30 + 10.2 * userPercentage);
       });
     });
 
@@ -255,7 +305,12 @@ describe('founder rewards', function () {
       // 3rd unstake should be worth twice the first one
       const timeController = new TimeController();
       beforeEach(async function () {
-        await lockTokensAtLatestTime(dist, $AMPL(100), ONE_YEAR);
+        await lockTokensAtLatestTimeFromStakingEscrow(
+          stakingEscrow,
+          $AMPL(100),
+          ONE_YEAR,
+          owner
+        );
 
         await timeController.initialize();
         await dist.stake($AMPL(10), [], { from: anotherAccount });
@@ -264,7 +319,12 @@ describe('founder rewards', function () {
         await timeController.advanceTime(ONE_YEAR);
         await dist.updateAccounting({ from: anotherAccount });
 
-        checkRewardsApprox(100, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          100,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
       });
 
       it('should use updated user accounting', async function () {
@@ -298,7 +358,12 @@ describe('founder rewards', function () {
       // user's final balance is 57 ampl
       const timeController = new TimeController();
       beforeEach(async function () {
-        await lockTokensAtLatestTime(dist, $AMPL(100), ONE_YEAR);
+        await lockTokensAtLatestTimeFromStakingEscrow(
+          stakingEscrow,
+          $AMPL(100),
+          ONE_YEAR,
+          owner
+        );
 
         await timeController.initialize();
         await timeController.advanceTime(ONE_YEAR / 100);
@@ -314,8 +379,18 @@ describe('founder rewards', function () {
       it('checkTotalRewards', async function () {
         expect(await dist.totalStaked.call()).to.be.bignumber.equal($AMPL(100));
 
-        checkRewardsApprox(45.6, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
-        checkRewardsApprox(30.4, await getRewardsFor(owner), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          45.6,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
+        checkRewardsApprox(
+          30.4,
+          await getRewardsFor(owner),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should update the total staked and rewards', async function () {
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
@@ -326,14 +401,24 @@ describe('founder rewards', function () {
         expect(await dist.totalStakedFor.call(owner)).to.be.bignumber.equal(
           $AMPL(50)
         );
-        checkRewardsApprox(18.24, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
-        checkRewardsApprox(30.4, await getRewardsFor(owner), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          18.24,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
+        checkRewardsApprox(
+          30.4,
+          await getRewardsFor(owner),
+          userPercentage,
+          founderPercentage
+        );
       });
       it('should transfer back staked tokens + rewards', async function () {
         const _b = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(30), [], { from: anotherAccount });
         const b = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b.sub(_b), 30 + (27.36 * 0.9));
+        checkAmplAprox(b.sub(_b), 30 + 27.36 * 0.9);
       });
     });
 
@@ -352,7 +437,7 @@ describe('founder rewards', function () {
         const now = await time.latest();
 
         await timeController.executeAsBlock(function () {
-          dist.lockTokens($AMPL(10000), ONE_YEAR, now);
+          stakingEscrow.lockTokens($AMPL(10000), ONE_YEAR, now);
           dist.stake($AMPL(5000), [], { from: anotherAccount });
         });
         await timeController.initialize();
@@ -368,8 +453,18 @@ describe('founder rewards', function () {
           $AMPL(18000)
         );
 
-        checkRewardsApprox(rewardsAnotherAccount, await getRewardsFor(anotherAccount), userPercentage, founderPercentage);
-        checkRewardsApprox(rewardsOwner, await getRewardsFor(owner), userPercentage, founderPercentage);
+        checkRewardsApprox(
+          rewardsAnotherAccount,
+          await getRewardsFor(anotherAccount),
+          userPercentage,
+          founderPercentage
+        );
+        checkRewardsApprox(
+          rewardsOwner,
+          await getRewardsFor(owner),
+          userPercentage,
+          founderPercentage
+        );
 
         checkAmplAprox(
           await totalRewardsFor(anotherAccount),
@@ -405,11 +500,15 @@ describe('founder rewards', function () {
         const b1 = await ampl.balanceOf.call(anotherAccount);
         await dist.unstake($AMPL(10000), [], { from: anotherAccount });
         const b2 = await ampl.balanceOf.call(anotherAccount);
-        checkAmplAprox(b2.sub(b1), 10000 + (rewardsAnotherAccount * userPercentage), 'anotherAccount');
+        checkAmplAprox(
+          b2.sub(b1),
+          10000 + rewardsAnotherAccount * userPercentage,
+          'anotherAccount'
+        );
         const b3 = await ampl.balanceOf.call(owner);
         await dist.unstake($AMPL(8000), []);
         const b4 = await ampl.balanceOf.call(owner);
-        checkAmplAprox(b4.sub(b3), 8000 + (rewardsOwner), 'owner'); // Expect owner to get user + founder rewards
+        checkAmplAprox(b4.sub(b3), 8000 + rewardsOwner, 'owner'); // Expect owner to get user + founder rewards
       });
     });
   });
@@ -420,34 +519,15 @@ describe('founder rewards', function () {
     // unstakes 30 ampls, gets 60% of the reward (60 ampl)
     const timeController = new TimeController();
     beforeEach(async function () {
-      await lockTokensAtLatestTime(dist, $AMPL(100), ONE_YEAR);
+      await lockTokensAtLatestTimeFromStakingEscrow(
+        stakingEscrow,
+        $AMPL(100),
+        ONE_YEAR,
+        owner
+      );
 
       await dist.stake($AMPL(50), [], { from: anotherAccount });
       await timeController.initialize();
-      await timeController.advanceTime(ONE_YEAR);
-      await dist.updateAccounting({ from: anotherAccount });
-    });
-    it('should return the reward amount', async function () {
-      checkAmplAprox(await totalRewardsFor(anotherAccount), 100);
-      const a = await dist.unstakeQuery.call($AMPL(30), {
-        from: anotherAccount
-      });
-      checkAmplAprox(a.totalReward, 60); // Check total rewards
-    });
-  });
-
-  describe('Cannot unstake future rewards', function () {
-    // 100 ampls locked for 1 year, user stakes 50 ampls for 1 year
-    // user is eligible for 100% of the reward,
-    // unstakes 30 ampls, gets 60% of the reward (60 ampl)
-    const timeController = new TimeController();
-    beforeEach(async function () {
-      const now = await time.latest();
-      await dist.lockTokens($AMPL(100), ONE_YEAR, now + ONE_YEAR);
-
-      await dist.stake($AMPL(50), [], { from: anotherAccount });
-      await timeController.initialize();
-
       await timeController.advanceTime(ONE_YEAR);
       await dist.updateAccounting({ from: anotherAccount });
     });

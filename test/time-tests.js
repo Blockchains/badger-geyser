@@ -1,15 +1,15 @@
-const { contract, web3 } = require("@openzeppelin/test-environment");
+const { contract, web3 } = require('@openzeppelin/test-environment');
 const {
   expectRevert,
   expectEvent,
   BN,
   constants,
-  time,
-} = require("@openzeppelin/test-helpers");
-const { expect } = require("chai");
+  time
+} = require('@openzeppelin/test-helpers');
+const { expect } = require('chai');
 
-const _require = require("app-root-path").require;
-const BlockchainCaller = _require("/util/blockchain_caller");
+const _require = require('app-root-path').require;
+const BlockchainCaller = _require('/util/blockchain_caller');
 const chain = new BlockchainCaller(web3);
 const {
   $AMPL,
@@ -18,13 +18,13 @@ const {
   setTimeForNextTransaction,
   increaseTimeForNextTransaction,
   setSnapshot,
-  revertSnapshot,
-} = _require("/test/helper");
+  revertSnapshot
+} = _require('/test/helper');
 
-const { setupContracts } = require("./setup");
+const { setupContracts } = require('./setup');
 
-const AmpleforthErc20 = contract.fromArtifact("UFragments");
-const BadgerGeyser = contract.fromArtifact("BadgerGeyser");
+const AmpleforthErc20 = contract.fromArtifact('UFragments');
+const BadgerGeyser = contract.fromArtifact('BadgerGeyser');
 const InitialSharesPerToken = 10 ** 6;
 
 const startBonus = 100;
@@ -35,20 +35,20 @@ let snapshotId;
 
 let startTime, endStakeTime, stakeDuration;
 
-describe("Time tests", function() {
-  beforeEach("setup contracts", async function() {
+describe('Time tests', function () {
+  beforeEach('setup contracts', async function () {
     const now = await time.latest();
     startTime = now.add(new BN(1000));
     stakeDuration = new BN(1000);
     endStakeTime = startTime.add(stakeDuration);
-  
+
     ({
       owner,
       anotherAccount,
       ampl,
       dist,
       founderPercentage,
-      userPercentage,
+      userPercentage
     } = await setupContracts(
       1,
       startBonus,
@@ -62,126 +62,96 @@ describe("Time tests", function() {
     await ampl.transfer(anotherAccount, $AMPL(50000));
     await ampl.approve(dist.address, $AMPL(50000), { from: anotherAccount });
     await ampl.approve(dist.address, $AMPL(50000), { from: owner });
-
-    console.log({
-      startTime: startTime.toString(),
-      stakeDuration: stakeDuration.toString(),
-      endStakeTime: endStakeTime.toString()
-    })
   });
 
-  describe("Staking before global time or tokens locked", function() {
-    it("should fail", async function() {
+  describe('Staking before global time or tokens locked', function () {
+    it('should fail', async function () {
       await expectRevert.unspecified(dist.stake($AMPL(0), []));
     });
   });
 
-  it("Should not be possible to start unlockSchedule before global start time", async function() {
+  it('Should not be possible to start unlockSchedule before global start time', async function () {
     await expectRevert(
       dist.lockTokens($AMPL(1000), ONE_YEAR, startTime.sub(new BN(1000))),
-      "BadgerGeyser: schedule cannot start before global start time"
+      'BadgerGeyser: schedule cannot start before global start time'
     );
   });
 
-  it("Should not be possible to start unlockSchedule in the past", async function() {
+  it('Should not be possible to start unlockSchedule in the past', async function () {
     const now = await time.latest();
     await expectRevert(
       dist.lockTokens($AMPL(1000), ONE_YEAR, now - 1000),
-      "BadgerGeyser: schedule cannot start before global start time"
+      'BadgerGeyser: schedule cannot start before global start time'
     );
   });
 
-  it("Should be possible to start unlockSchedule at global start time", async function() {
+  it('Should be possible to start unlockSchedule at global start time', async function () {
     await dist.lockTokens($AMPL(1000), ONE_YEAR, startTime);
   });
 
-  it("Staking before global time", async function() {
+  it('Staking before global time', async function () {
     await dist.lockTokens($AMPL(1000), ONE_YEAR, startTime);
     await expectRevert(
       dist.stake($AMPL(500), [], { from: anotherAccount }),
-      "BadgerGeyser: Distribution not started."
+      'BadgerGeyser: Distribution not started.'
     );
     await expectRevert(
       dist.stake($AMPL(500), [], { from: owner }),
-      "BadgerGeyser: Distribution not started."
+      'BadgerGeyser: Distribution not started.'
     );
   });
 
-  describe('Staking & Unstaking Timing - One User', function() {
-
+  describe('Staking & Unstaking Timing - One User', function () {
     let preBalance;
-    beforeEach(async function() {
+    beforeEach(async function () {
       preBalance = await ampl.balanceOf(anotherAccount);
-      console.log('pre-lock', (await time.latest()).toString())
       await dist.lockTokens($AMPL(1000), ONE_YEAR, startTime);
-    })
+    });
 
-    it("Staking should fail before start time", async function() {
-      await expectRevert(dist.stake($AMPL(500), [], { from: anotherAccount }), "BadgerGeyser: Distribution not started");
-    })
-    
-    it("Entire distribution to one staker, after unstaking complete", async function() {
+    it('Staking should fail before start time', async function () {
+      await expectRevert(dist.stake($AMPL(500), [], { from: anotherAccount }), 'BadgerGeyser: Distribution not started');
+    });
+
+    it('Entire distribution to one staker, after unstaking complete', async function () {
       let now = await time.latest();
       await time.increase(startTime.sub(now).toNumber());
-  
-      console.log('stake', (await time.latest()).toString())
+
       await dist.stake($AMPL(500), [], { from: anotherAccount });
 
       now = await time.latest();
       await time.increase(endStakeTime.sub(now).toNumber());
 
-      console.log('unstake', (await time.latest()).toString())
-  
       await dist.unstake($AMPL(500), [], { from: anotherAccount });
-  
+
       const postBalance = await ampl.balanceOf(anotherAccount);
-  
-      console.log({
-        preBalance: preBalance.toString(),
-        postBalance: postBalance.toString(),
-      });
     });
-  
-    it("First stake exactly when last unlockSchedule is completed, first staker should be able to withdraw everything in next block", async function() {
+
+    it('First stake exactly when last unlockSchedule is completed, first staker should be able to withdraw everything in next block', async function () {
       const preBalance = await ampl.balanceOf(anotherAccount);
 
-      now = await time.latest();      
+      now = await time.latest();
       await time.increase((endStakeTime.sub(now)).toNumber());
 
-      console.log('stake', (await time.latest()).toString())
       await dist.stake($AMPL(500), [], { from: anotherAccount });
       await time.increase(1);
       await time.advanceBlock();
-      console.log('unstake', (await time.latest()).toString())
       await dist.unstake($AMPL(500), [], { from: anotherAccount });
-  
+
       const postBalance = await ampl.balanceOf(anotherAccount);
-  
-      console.log({
-        preBalance: preBalance.toString(),
-        postBalance: postBalance.toString(),
-      });
     });
 
-    it("First stake well after last unlockSchedule is completed, first staker should be able to withdraw everything in next block", async function() {
+    it('First stake well after last unlockSchedule is completed, first staker should be able to withdraw everything in next block', async function () {
       const preBalance = await ampl.balanceOf(anotherAccount);
 
-      now = await time.latest();      
+      now = await time.latest();
       await time.increase((endStakeTime.sub(now).add(new BN(100000))).toNumber());
 
-      console.log('stake', (await time.latest()).toString())
       await dist.stake($AMPL(500), [], { from: anotherAccount });
       await time.increase(1);
       await time.advanceBlock();
-      console.log('unstake', (await time.latest()).toString())
       await dist.unstake($AMPL(500), [], { from: anotherAccount });
-  
+
       const postBalance = await ampl.balanceOf(anotherAccount);
-  
-      console.log({
-        preBalance: preBalance.toString(),
-        postBalance: postBalance.toString(),
-      });
     });
-  })
+  });
 });

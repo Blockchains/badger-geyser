@@ -115,9 +115,11 @@ contract BaseGeyser is IStaking, Ownable {
     uint256 public founderRewardPercentage = 0; //0% - 100%
     address public founderRewardAddress;
 
-
     modifier onlyAfterStart() {
-        require(now >= globalStartTime, "BadgerGeyser: Distribution not started");
+        require(
+            now >= globalStartTime,
+            "BadgerGeyser: Distribution not started"
+        );
         _;
     }
 
@@ -284,7 +286,7 @@ contract BaseGeyser is IStaking, Ownable {
         // Redeem from most recent stake and go backwards in time.
         uint256 stakingShareSecondsToBurn = 0;
         uint256 sharesLeftToBurn = stakingSharesToBurn;
-        uint256 rewardAmount = 0;
+        totalReward = 0;
         while (sharesLeftToBurn > 0) {
             Stake storage lastStake = accountStakes[accountStakes.length - 1];
             uint256 stakeTimeSec = now.sub(lastStake.timestampSec);
@@ -294,8 +296,8 @@ contract BaseGeyser is IStaking, Ownable {
                 newStakingShareSecondsToBurn = lastStake.stakingShares.mul(
                     stakeTimeSec
                 );
-                rewardAmount = computeNewReward(
-                    rewardAmount,
+                totalReward = computeNewReward(
+                    totalReward,
                     newStakingShareSecondsToBurn,
                     stakeTimeSec
                 );
@@ -311,8 +313,8 @@ contract BaseGeyser is IStaking, Ownable {
                 newStakingShareSecondsToBurn = sharesLeftToBurn.mul(
                     stakeTimeSec
                 );
-                rewardAmount = computeNewReward(
-                    rewardAmount,
+                totalReward = computeNewReward(
+                    totalReward,
                     newStakingShareSecondsToBurn,
                     stakeTimeSec
                 );
@@ -340,7 +342,7 @@ contract BaseGeyser is IStaking, Ownable {
         // Already set in updateAccounting
         // _lastAccountingTimestampSec = now;
 
-        (userReward, founderReward) = computeFounderReward(rewardAmount);
+        (userReward, founderReward) = computeFounderReward(totalReward);
 
         // interactions
         require(
@@ -363,7 +365,7 @@ contract BaseGeyser is IStaking, Ownable {
         }
 
         emit Unstaked(msg.sender, amount, totalStakedFor(msg.sender), "");
-        emit TokensClaimed(msg.sender, rewardAmount, userReward, founderReward);
+        emit TokensClaimed(msg.sender, totalReward, userReward, founderReward);
 
         require(
             totalStakingShares == 0 || totalStaked() > 0,
@@ -391,7 +393,7 @@ contract BaseGeyser is IStaking, Ownable {
             founderReward = totalReward.mul(founderRewardPercentage).div(
                 MAX_PERCENTAGE
             );
-            userReward = totalReward.sub(founderReward); // Extra dust goes to use due to truncated rounding
+            userReward = totalReward.sub(founderReward); // Extra dust due to truncated rounding goes to user
         }
     }
 

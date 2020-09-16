@@ -424,6 +424,8 @@ describe('unstaking', function () {
       await dist.updateAccounting({ from: anotherAccount });
     });
     it('should return the reward amount', async function () {
+      const totalRewards = await totalRewardsFor(anotherAccount);
+      console.log(totalRewards);
       checkAmplAprox(await totalRewardsFor(anotherAccount), 100);
       const a = await dist.unstakeQuery.call($AMPL(30), {
         from: anotherAccount

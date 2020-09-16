@@ -1,20 +1,19 @@
-const { contract, web3 } = require("@openzeppelin/test-environment");
+const { contract, web3 } = require('@openzeppelin/test-environment');
 const {
   expectRevert,
   expectEvent,
   BN,
-  constants,
-} = require("@openzeppelin/test-helpers");
-const { expect } = require("chai");
+  constants
+} = require('@openzeppelin/test-helpers');
+const { expect } = require('chai');
 
-
-const _require = require("app-root-path").require;
-const BlockchainCaller = _require("/util/blockchain_caller");
+const _require = require('app-root-path').require;
+const BlockchainCaller = _require('/util/blockchain_caller');
 const chain = new BlockchainCaller(web3);
-const { $AMPL, invokeRebase } = _require("/test/helper");
+const { $AMPL, invokeRebase } = _require('/test/helper');
 
-const AmpleforthErc20 = contract.fromArtifact("UFragments");
-const BadgerGeyser = contract.fromArtifact("BadgerGeyser");
+const AmpleforthErc20 = contract.fromArtifact('UFragments');
+const BadgerGeyser = contract.fromArtifact('BadgerGeyser');
 
 let owner, anotherAccount, ampl, dist, founderPercentage, userPercentage;
 
@@ -24,10 +23,10 @@ const defaultParams = {
   bonusPeriod: 1,
   initialSharesPerToken: 10 ** 6,
   globalStartTime: 0,
-  founderPercentage: 0,
+  founderPercentage: 0
 };
 
-async function setupContracts(
+async function setupContracts (
   maxUnlockSchedules,
   startBonus,
   bonusPeriod,
@@ -65,10 +64,10 @@ async function setupContracts(
     ampl,
     dist,
     founderPercentage,
-    userPercentage,
+    userPercentage
   };
 }
 
 module.exports = {
   setupContracts
-}
+};

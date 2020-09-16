@@ -127,20 +127,26 @@ async function lockTokensAtLatestTime (geyser, amount, duration) {
   return (await geyser.lockTokens(amount, duration, now));
 }
 
-async function setSnapshot() {
+async function lockTokensAtLatestTimeFromStakingEscrow (stakingEscrow, amount, duration, owner) {
+  const now = await time.latest();
+  await setTimeForNextTransaction(now);
+  return (await stakingEscrow.lockTokens(amount, duration, now, { from: owner }));
+}
+
+async function setSnapshot () {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send({
       jsonrpc: '2.0',
       method: 'evm_snapshot',
       id: new Date().getTime()
     }, (err, snapshotId) => {
-      if (err) { return reject(err) }
-      return resolve(snapshotId)
-    })
-  })
-  }
+      if (err) { return reject(err); }
+      return resolve(snapshotId);
+    });
+  });
+}
 
-async function revertSnapshot(id) {
+async function revertSnapshot (id) {
   return new Promise((resolve, reject) => {
     web3.currentProvider.send({
       jsonrpc: '2.0',
@@ -148,12 +154,11 @@ async function revertSnapshot(id) {
       params: [id],
       id: new Date().getTime()
     }, (err, result) => {
-      if (err) { return reject(err) }
-      return resolve(result)
-    })
-  })
+      if (err) { return reject(err); }
+      return resolve(result);
+    });
+  });
 }
-
 
 async function setTimeForNextTransaction (target) {
   if (!BN.isBN(target)) {
@@ -161,8 +166,6 @@ async function setTimeForNextTransaction (target) {
   }
 
   const now = await time.latest();
-
-  console.log(now.toString())
 
   if (target.lt(now)) {
     throw Error(
@@ -185,6 +188,7 @@ module.exports = {
   printStatus,
   now,
   lockTokensAtLatestTime,
+  lockTokensAtLatestTimeFromStakingEscrow,
   checkRewardsApprox,
   ONE_YEAR,
   setSnapshot,
